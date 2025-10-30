@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Item } from "./ItemCard";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface ManageListingsProps {
   onBack: () => void;

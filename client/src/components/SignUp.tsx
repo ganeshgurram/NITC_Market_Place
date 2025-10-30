@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Separator } from "./ui/separator";
 import { Alert, AlertDescription } from "./ui/alert";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import api from "../api";
 
 interface SignUpProps {
   onSignUp: (user: any) => void;
@@ -79,38 +80,31 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
 
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const error = validateStep2();
-    if (error) {
-      setError(error);
-      return;
-    }
+  const error = validateStep2();
+  if (error) {
+    setError(error);
+    return;
+  }
 
-    setIsLoading(true);
-    setError("");
+  setIsLoading(true);
+  setError("");
 
-    try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+  try {
+    // Make API request to backend
+    const res = await api.post("/auth/register", formData);
 
-      // Mock user data
-      const user = {
-        id: Date.now().toString(),
-        name: formData.fullName,
-        email: formData.email,
-        department: formData.department,
-        year: formData.year,
-        rollNumber: formData.rollNumber,
-        rating: 5.0,
-        reviewCount: 0
-      };
+    // Save user info to sessionStorage (non-sensitive)
+    sessionStorage.setItem("user", JSON.stringify(res.data.user));
 
-      onSignUp(user);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // The JWT token will be stored automatically in the cookie (httpOnly)
+    onSignUp(res.data.user);
+  } catch (err: any) {
+    setError(err.response?.data?.message || "Something went wrong");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex">
