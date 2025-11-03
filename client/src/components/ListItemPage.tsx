@@ -1,7 +1,9 @@
-import { useState } from "react";
+
+import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Upload, X, Plus, MapPin, Info, DollarSign } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { toast } from "sonner";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -57,7 +59,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
     title: "",
     description: "",
     price: "",
-    type: "sale", // sale, rent, free
+    type: "sale" as "sale" | "rent" | "free",
     category: "",
     department: currentUser.department || "",
     semester: "",
@@ -69,10 +71,54 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
     images: [] as string[]
   });
 
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const [step, setStep] = useState(1);
+
+  // Cleanup object URLs when component unmounts or images change
+  useEffect(() => {
+    return () => {
+      formData.images.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [formData.images]);
+
+  // Upload image to backend and store returned path
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files?.length) return;
+    setUploadingImage(true);
+    try {
+      const file = event.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      const form = new FormData();
+      form.append('image', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: form
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        toast.error('Image upload failed');
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, data.url]
+      }));
+    } catch (error) {
+      toast.error('Image upload error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
@@ -128,33 +174,8 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
     }
   };
 
-  const addSampleImage = async () => {
-    setUploadingImage(true);
-    try {
-      // Mock image URLs based on category
-      const imageUrls = {
-        textbook: "https://images.unsplash.com/photo-1595315342809-fa10945ed07c?w=400&h=400&fit=crop",
-        "lab-equipment": "https://images.unsplash.com/photo-1758876569703-ea9b21463691?w=400&h=400&fit=crop",
-        stationery: "https://images.unsplash.com/photo-1693011142814-aa33d7d1535c?w=400&h=400&fit=crop",
-        electronics: "https://images.unsplash.com/photo-1595315342809-fa10945ed07c?w=400&h=400&fit=crop",
-        other: "https://images.unsplash.com/photo-1693011142814-aa33d7d1535c?w=400&h=400&fit=crop"
-      };
-      
-      // Simulate loading delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const imageUrl = imageUrls[formData.category as keyof typeof imageUrls] || imageUrls.other;
-      
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, imageUrl]
-      }));
-    } catch (error) {
-      console.error("Error adding image:", error);
-    } finally {
-      setUploadingImage(false);
-    }
-  };
+ 
+  
 
   const removeImage = (index: number) => {
     setFormData(prev => ({
@@ -209,7 +230,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
               <CardContent>
                 <RadioGroup 
                   value={formData.type} 
-                  onValueChange={(value) => setFormData({...formData, type: value})}
+                  onValueChange={(value:any) => setFormData({...formData, type: value})}
                   className="grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
                   <div className="flex items-center space-x-2 p-4 border rounded-lg">
@@ -276,7 +297,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Category *</Label>
-                    <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+                    <Select value={formData.category} onValueChange={(value:any) => setFormData({...formData, category: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
@@ -314,7 +335,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Semester</Label>
-                      <Select value={formData.semester} onValueChange={(value) => setFormData({...formData, semester: value})}>
+                      <Select value={formData.semester} onValueChange={(value:any) => setFormData({...formData, semester: value})}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select semester" />
                         </SelectTrigger>
@@ -359,7 +380,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Department *</Label>
-                    <Select value={formData.department} onValueChange={(value) => setFormData({...formData, department: value})}>
+                    <Select value={formData.department} onValueChange={(value:any) => setFormData({...formData, department: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
@@ -376,7 +397,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
 
                   <div className="space-y-2">
                     <Label>Condition *</Label>
-                    <Select value={formData.condition} onValueChange={(value) => setFormData({...formData, condition: value})}>
+                    <Select value={formData.condition} onValueChange={(value:any) => setFormData({...formData, condition: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select condition" />
                       </SelectTrigger>
@@ -457,24 +478,35 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
                     ))}
                     
                     {formData.images.length < 5 && (
-                      <Button
-                        variant="outline"
-                        className="h-32 border-dashed flex flex-col items-center justify-center"
-                        onClick={addSampleImage}
-                        disabled={uploadingImage}
-                      >
-                        {uploadingImage ? (
-                          <div className="flex flex-col items-center">
-                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
-                            <span className="text-sm">Adding...</span>
-                          </div>
-                        ) : (
-                          <>
-                            <Plus className="w-6 h-6 mb-2" />
-                            <span className="text-sm">Add Image</span>
-                          </>
-                        )}
-                      </Button>
+                      <>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="image-upload"
+                          disabled={uploadingImage}
+                        />
+                        <Button
+                          variant="outline"
+                          className="h-32 border-dashed flex flex-col items-center justify-center"
+                          onClick={() => document.getElementById('image-upload')?.click()}
+                          disabled={uploadingImage}
+                        >
+                          {uploadingImage ? (
+                            <div className="flex flex-col items-center">
+                              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
+                              <span className="text-sm">Uploading...</span>
+                            </div>
+                          ) : (
+                            <>
+                              <Upload className="w-6 h-6 mb-2" />
+                              <span className="text-sm">Upload Image</span>
+                              <span className="text-xs text-muted-foreground">Max size: 5MB</span>
+                            </>
+                          )}
+                        </Button>
+                      </>
                     )}
                   </div>
                   

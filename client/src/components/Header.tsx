@@ -108,11 +108,17 @@ export function Header({
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onProfileClick}>
+                  <DropdownMenuItem
+                    onClick={onProfileClick}
+                    className="flex items-center cursor-pointer"
+                  >
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onMessagesClick}>
+                  <DropdownMenuItem onClick={(e) => {
+                    e.preventDefault();
+                    onMessagesClick();
+                  }}>
                     <MessageCircle className="mr-2 h-4 w-4" />
                     <span>Messages</span>
                   </DropdownMenuItem>

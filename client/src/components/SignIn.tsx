@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Alert, AlertDescription } from "./ui/alert";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { authAPI } from "../utils/api";
+import { toast } from "sonner@2.0.3";
 
 interface SignInProps {
   onSignIn: (user: any) => void;
@@ -27,38 +29,18 @@ export function SignIn({ onSignIn, onSwitchToSignUp }: SignInProps) {
     setIsLoading(true);
     setError("");
 
-    // Mock authentication - in real app this would call an API
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock validation
-      if (!formData.email.endsWith("@nitc.ac.in")) {
-        throw new Error("Please use your NITC email address");
-      }
-      
-      if (formData.password.length < 6) {
-        throw new Error("Invalid credentials");
-      }
-
-      // Check for admin login
-      const isAdmin = formData.email === "admin@nitc.ac.in" && formData.password === "admin123";
-
-      // Mock user data
-      const user = {
-        id: isAdmin ? "admin" : "1",
-        name: isAdmin ? "Admin User" : formData.email.split("@")[0].replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()),
+      const response = await authAPI.signin({
         email: formData.email,
-        rating: isAdmin ? 5.0 : 4.6,
-        reviewCount: isAdmin ? 0 : 23,
-        department: isAdmin ? "Administration" : "Computer Science & Engineering",
-        year: isAdmin ? "Admin" : "3rd Year",
-        role: isAdmin ? "admin" : "student"
-      };
+        password: formData.password
+      });
 
-      onSignIn(user);
+      toast.success("Successfully signed in!");
+      onSignIn(response.user);
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err.message || "Sign in failed. Please check your credentials.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

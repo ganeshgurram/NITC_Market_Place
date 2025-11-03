@@ -10,8 +10,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { Item } from "./ItemCard";
-import { toast } from "sonner";
+// Extend Item type to include missing properties for this component
+import { Item as BaseItem } from "./ItemCard";
+export interface Item extends BaseItem {
+  status?: string;
+  messages?: number;
+  views?: number;
+}
+import { toast } from "sonner@2.0.3";
 
 interface ManageListingsProps {
   onBack: () => void;
@@ -62,19 +68,17 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
   const filteredItems = userItems.filter(item => {
     const matchesSearch = searchQuery === "" || 
       item.title.toLowerCase().includes(searchQuery.toLowerCase());
-    
     const matchesStatus = statusFilter === "all" || 
       (statusFilter === "available" && item.isAvailable) ||
       (statusFilter === "sold" && !item.isAvailable) ||
       (statusFilter === "hidden" && item.status === "hidden");
-
     return matchesSearch && matchesStatus;
   });
 
   const activeItems = userItems.filter(item => item.isAvailable).length;
   const soldItems = userItems.filter(item => !item.isAvailable).length;
-  const totalViews = userItems.reduce((acc, item) => acc + (item.views || 0), 0);
-  const totalMessages = userItems.reduce((acc, item) => acc + (item.messages || 0), 0);
+  const totalViews = userItems.reduce((acc, item) => acc + (item.views ?? 0), 0);
+  const totalMessages = userItems.reduce((acc, item) => acc + (item.messages ?? 0), 0);
 
   const handleStatusChange = (itemId: string, newStatus: string) => {
     const updates: Partial<Item> = {};

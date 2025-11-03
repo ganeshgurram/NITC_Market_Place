@@ -1,23 +1,101 @@
-import mongoose from "mongoose";
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    passwordHash: { type: String, required: true },
-    role: { type: String, enum: ["Student", "Admin"], default: "Student" },
-    avatarUrl: { type: String },
-    department: { type: String, required: true },
-    year: { type: String, required: true },
-    rollNumber: { type: String, required: true },
-    rating: {
-      avg: { type: Number, default: 0 },
-      count: { type: Number, default: 0 },
-    },
-    emailVerified: { type: Boolean, default: false },
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
   },
-  { timestamps: true } // auto adds createdAt and updatedAt
-);
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  rollNumber: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  department: {
+    type: String,
+    required: true
+  },
+  semester: {
+    type: String,
+    required: true
+  },
+  phone: {
+    type: String,
+    required: true
+  },
+  hostel: {
+    type: String
+  },
+  role: {
+    type: String,
+    enum: ['student', 'admin'],
+    default: 'student'
+  },
+  rating: {
+    type: Number,
+    default: 0
+  },
+  reviewCount: {
+    type: Number,
+    default: 0
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
-const User = mongoose.model("User", userSchema);
-export default User;
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    // Ensure candidatePassword is a string and stored password exists
+    if (typeof candidatePassword !== 'string' || !this.password) {
+      return false;
+    }
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    // On any error, return false rather than throwing to the caller
+    return false;
+  }
+};
+
+// Remove password from JSON response
+userSchema.methods.toJSON = function() {
+  const obj = this.toObject();
+  delete obj.password;
+  return obj;
+};
+
+module.exports = mongoose.model('User', userSchema);

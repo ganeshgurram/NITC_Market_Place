@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "./components/Header";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { ItemCard, Item } from "./components/ItemCard";
@@ -19,95 +19,10 @@ import { Button } from "./components/ui/button";
 import { Card, CardContent } from "./components/ui/card";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
 import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
+import { itemsAPI } from "./utils/api";
 
-// Mock items data
-const mockItems: Item[] = [
-  {
-    id: "1",
-    title: "Advanced Engineering Mathematics by Kreyszig (10th Edition)",
-    description: "Excellent condition textbook with minimal highlighting. All chapters included, no torn pages. Perfect for 3rd semester mathematics course.",
-    price: 800,
-    type: "sale",
-    category: "textbook",
-    department: "Computer Science & Engineering",
-    semester: "3",
-    courseCode: "MA2001",
-    condition: "like-new",
-    images: ["https://images.unsplash.com/photo-1595315342809-fa10945ed07c?w=400&h=400&fit=crop"],
-    seller: {
-      id: "2",
-      name: "Priya Sharma",
-      rating: 4.8,
-      reviewCount: 15
-    },
-    location: "Hostel H3, Room 201",
-    postedAt: "2 days ago",
-    isAvailable: true
-  },
-  {
-    id: "2", 
-    title: "Digital Oscilloscope - Tektronix TDS2012C",
-    description: "Professional oscilloscope available for rent. Perfect for electronics lab projects and circuit analysis. Comes with all probes and cables.",
-    type: "rent",
-    category: "lab-equipment",
-    department: "Electronics & Communication",
-    semester: "5",
-    courseCode: "EC3001",
-    condition: "good",
-    images: ["https://images.unsplash.com/photo-1758876569703-ea9b21463691?w=400&h=400&fit=crop"],
-    seller: {
-      id: "3",
-      name: "Rahul Kumar",
-      rating: 4.5,
-      reviewCount: 28
-    },
-    location: "EEE Lab Block",
-    postedAt: "1 day ago",
-    isAvailable: true
-  },
-  {
-    id: "3",
-    title: "Complete Stationery Set - Pens, Rulers, Calculator",
-    description: "Giving away unused stationery items. Includes gel pens, mechanical pencils, rulers, protractor, and scientific calculator. Great for new students!",
-    type: "free",
-    category: "stationery",
-    department: "All Departments",
-    condition: "new",
-    images: ["https://images.unsplash.com/photo-1693011142814-aa33d7d1535c?w=400&h=400&fit=crop"],
-    seller: {
-      id: "4",
-      name: "Sneha Patel",
-      rating: 4.9,
-      reviewCount: 42
-    },
-    location: "Main Gate Area",
-    postedAt: "3 hours ago",
-    isAvailable: true
-  },
-  {
-    id: "4",
-    title: "Computer Graphics Textbook - Hearn & Baker",
-    description: "Standard textbook for computer graphics course. Some highlighting and notes in margins. Good for understanding concepts and exam preparation.",
-    price: 450,
-    type: "sale",
-    category: "textbook",
-    department: "Computer Science & Engineering",
-    semester: "6",
-    courseCode: "CS3005",
-    condition: "good",
-    images: ["https://images.unsplash.com/photo-1595315342809-fa10945ed07c?w=400&h=400&fit=crop"],
-    seller: {
-      id: "5",
-      name: "Karthik Nair",
-      rating: 4.3,
-      reviewCount: 11
-    },
-    location: "Library Entrance",
-    postedAt: "1 week ago",
-    isAvailable: false
-  }
-];
+// No mock items: load items from sessionStorage or start with empty list
 
 const categories = [
   { icon: BookOpen, title: "Textbooks", count: 245, color: "bg-blue-100 text-blue-700" },
@@ -117,9 +32,25 @@ const categories = [
 ];
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  // Initialize from sessionStorage so reload preserves session and current page
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const raw = sessionStorage.getItem('nm_currentUser');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
-  const [currentPage, setCurrentPage] = useState<"marketplace" | "profile" | "admin" | "listitem" | "manage" | "review" | "ratings">("marketplace");
+  // Use a flexible string page so we can support dynamic paths like item/:id
+  const [currentPage, setCurrentPage] = useState<string>(() => {
+    try {
+      const raw = sessionStorage.getItem('nm_currentPage');
+      return (raw as any) || "marketplace";
+    } catch (e) {
+      return "marketplace";
+    }
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
   const [selectedSemester, setSelectedSemester] = useState("All Semesters");
@@ -127,7 +58,14 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
-  const [items, setItems] = useState(mockItems);
+  const [items, setItems] = useState<Item[]>(() => {
+    try {
+      const raw = sessionStorage.getItem('nm_items');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [selectedUserForRatings, setSelectedUserForRatings] = useState<any>(null);
@@ -166,6 +104,8 @@ export default function App() {
 
   const handleItemClick = (item: Item) => {
     setSelectedItem(item);
+    // navigate to item detail URL (kept in state; RouterSync syncs URL)
+    setCurrentPage(`item/${item.id}`);
   };
 
   const handleContactSeller = (item: Item) => {
@@ -208,28 +148,43 @@ export default function App() {
     setSelectedItem(null);
     setShowPostDialog(false);
     setShowMessages(false);
+    // Clear session storage for user and page but keep items persisted
+    try {
+      sessionStorage.removeItem('nm_currentUser');
+      sessionStorage.setItem('nm_currentPage', 'marketplace');
+    } catch (e) {
+      // ignore
+    }
     toast("Signed out successfully", {
       description: "You've been signed out of your account"
     });
   };
 
-  const handlePostItem = (newItem: any) => {
+  const handlePostItem = async (newItem: any) => {
     if (!currentUser) return;
-    
-    const item: Item = {
-      id: Date.now().toString(),
-      ...newItem,
-      images: newItem.images.length > 0 ? newItem.images : ["https://images.unsplash.com/photo-1595315342809-fa10945ed07c?w=400&h=400&fit=crop"],
-      seller: currentUser,
-      postedAt: "Just now",
-      isAvailable: true,
-      price: newItem.type === "sale" ? parseInt(newItem.price) : undefined
-    };
-    
-    setItems([item, ...items]);
-    toast("Item listed successfully!", {
-      description: "Your item is now visible to other students."
-    });
+
+    try {
+      const payload = {
+        ...newItem,
+        price: newItem.type === 'sale' ? newItem.price : undefined
+      };
+
+      const data = await itemsAPI.create(payload);
+      const created: Item = data.item;
+
+      setItems(prev => {
+        const next = [created, ...prev];
+        try { sessionStorage.setItem('nm_items', JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+
+      toast("Item listed successfully!", {
+        description: "Your item is now visible to other students."
+      });
+    } catch (err: any) {
+      const message = err?.message || 'Failed to create item';
+      toast.error ? toast.error(message) : toast(message);
+    }
   };
 
   const handleViewProfile = (sellerId: string) => {
@@ -266,13 +221,19 @@ export default function App() {
   };
 
   const handleItemUpdate = (itemId: string, updates: Partial<Item>) => {
-    setItems(prev => prev.map(item => 
-      item.id === itemId ? { ...item, ...updates } : item
-    ));
+    setItems(prev => {
+      const next = prev.map(item => item.id === itemId ? { ...item, ...updates } : item);
+      try { sessionStorage.setItem('nm_items', JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
   };
 
   const handleItemDelete = (itemId: string) => {
-    setItems(prev => prev.filter(item => item.id !== itemId));
+    setItems(prev => {
+      const next = prev.filter(item => item.id !== itemId);
+      try { sessionStorage.setItem('nm_items', JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
   };
 
   const handleReviewSubmit = (review: any) => {
@@ -321,21 +282,112 @@ export default function App() {
   };
 
   // Show authentication screens if not logged in
+  // persist currentUser and currentPage to sessionStorage
+  useEffect(() => {
+    try {
+      if (currentUser) sessionStorage.setItem('nm_currentUser', JSON.stringify(currentUser));
+      else sessionStorage.removeItem('nm_currentUser');
+    } catch (e) {}
+  }, [currentUser]);
+
+  useEffect(() => {
+    try {
+      if (currentPage) sessionStorage.setItem('nm_currentPage', currentPage);
+    } catch (e) {}
+  }, [currentPage]);
+
+  // Lightweight URL sync using History API (avoids react-router-dom hooks)
+  useEffect(() => {
+    // initialize currentPage from URL on mount
+    const path = window.location.pathname;
+    if (path === '/' || path === '/marketplace') {
+      setCurrentPage('marketplace');
+    } else {
+      setCurrentPage(path.startsWith('/') ? path.slice(1) : path);
+    }
+
+    // if visiting /item/:id directly, load the item
+    if (path.startsWith('/item/')) {
+      const parts = path.split('/').filter(Boolean);
+      const id = parts[1] || parts[0];
+      if (id) {
+        (async () => {
+          try {
+            const res = await itemsAPI.getById(id);
+            if (res?.item) setSelectedItem(res.item);
+          } catch (err) {
+            console.error('Failed to load item by id', err);
+          }
+        })();
+      }
+    }
+
+    const onPop = (e: PopStateEvent) => {
+      const p = window.location.pathname;
+      if (p === '/' || p === '/marketplace') setCurrentPage('marketplace');
+      else setCurrentPage(p.startsWith('/') ? p.slice(1) : p);
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // push history when currentPage changes
+  useEffect(() => {
+    const desiredPath = currentPage === 'marketplace' ? '/' : `/${currentPage}`;
+    if (window.location.pathname !== desiredPath) {
+      window.history.pushState({}, '', desiredPath);
+    }
+
+    // if navigating to an item detail, load it
+    if (currentPage.startsWith('item/')) {
+      const id = currentPage.split('/')[1];
+      if (id) {
+        (async () => {
+          try {
+            const res = await itemsAPI.getById(id);
+            if (res?.item) setSelectedItem(res.item);
+          } catch (err) {
+            console.error('Failed to load item by id', err);
+          }
+        })();
+      }
+    }
+  }, [currentPage]);
+
+  // Load items from backend (useful after login or on initial load)
+  useEffect(() => {
+    const loadItems = async () => {
+      try {
+        const data = await itemsAPI.getAll();
+        if (data?.items) {
+          setItems(data.items);
+          try { sessionStorage.setItem('nm_items', JSON.stringify(data.items)); } catch (e) {}
+        }
+      } catch (e) {
+        // ignore load errors (server may be offline during dev)
+      }
+    };
+
+    loadItems();
+  }, [currentUser]);
+
   if (!currentUser) {
     if (authMode === "signup") {
       return (
-        <SignUp 
-          onSignUp={handleSignUp}
-          onSwitchToSignIn={() => setAuthMode("signin")}
-        />
+          <SignUp 
+            onSignUp={handleSignUp}
+            onSwitchToSignIn={() => setAuthMode("signin")}
+          />
       );
     }
     
     return (
-      <SignIn 
-        onSignIn={handleSignIn}
-        onSwitchToSignUp={() => setAuthMode("signup")}
-      />
+        <SignIn 
+          onSignIn={handleSignIn}
+          onSwitchToSignUp={() => setAuthMode("signup")}
+        />
     );
   }
 
@@ -348,30 +400,30 @@ export default function App() {
   if (currentPage === "profile") {
     return (
       <div className="min-h-screen bg-background">
-        <Header
-          currentUser={currentUser}
-          onSearch={handleSearch}
-          onProfileClick={handleProfileClick}
-          onMessagesClick={() => setShowMessages(true)}
-          onPostItemClick={handlePostItemClick}
-          onSignOut={handleSignOut}
-          searchQuery={searchQuery}
-          unreadMessages={1}
-        />
-        <UserProfile
-          user={currentUser}
-          onBack={handleBackToMarketplace}
-          isOwnProfile={true}
-          userItems={getUserItems()}
-          onManageListings={handleManageListingsClick}
-          onViewRatings={() => handleViewRatings(currentUser)}
-        />
-        <MessagingInterface
-          isOpen={showMessages}
-          onClose={() => setShowMessages(false)}
-          currentUserId={currentUser.id}
-        />
-      </div>
+          <Header
+            currentUser={currentUser}
+            onSearch={handleSearch}
+            onProfileClick={handleProfileClick}
+            onMessagesClick={() => setShowMessages(true)}
+            onPostItemClick={handlePostItemClick}
+            onSignOut={handleSignOut}
+            searchQuery={searchQuery}
+            unreadMessages={1}
+          />
+          <UserProfile
+            user={currentUser}
+            onBack={handleBackToMarketplace}
+            isOwnProfile={true}
+            userItems={getUserItems()}
+            onManageListings={handleManageListingsClick}
+            onViewRatings={() => handleViewRatings(currentUser)}
+          />
+          <MessagingInterface
+            isOpen={showMessages}
+            onClose={() => setShowMessages(false)}
+            currentUserId={currentUser.id}
+          />
+        </div>
     );
   }
 
@@ -379,30 +431,30 @@ export default function App() {
   if (currentPage === "listitem") {
     return (
       <div className="min-h-screen bg-background">
-        <Header
-          currentUser={currentUser}
-          onSearch={handleSearch}
-          onProfileClick={handleProfileClick}
-          onMessagesClick={() => setShowMessages(true)}
-          onPostItemClick={handlePostItemClick}
-          onSignOut={handleSignOut}
-          searchQuery={searchQuery}
-          unreadMessages={1}
-        />
-        <ListItemPage
-          onBack={handleBackToMarketplace}
-          onSubmit={(newItem) => {
-            handlePostItem(newItem);
-            setCurrentPage("marketplace");
-          }}
-          currentUser={currentUser}
-        />
-        <MessagingInterface
-          isOpen={showMessages}
-          onClose={() => setShowMessages(false)}
-          currentUserId={currentUser.id}
-        />
-      </div>
+          <Header
+            currentUser={currentUser}
+            onSearch={handleSearch}
+            onProfileClick={handleProfileClick}
+            onMessagesClick={() => setShowMessages(true)}
+            onPostItemClick={handlePostItemClick}
+            onSignOut={handleSignOut}
+            searchQuery={searchQuery}
+            unreadMessages={1}
+          />
+          <ListItemPage
+            onBack={handleBackToMarketplace}
+            onSubmit={async (newItem) => {
+              await handlePostItem(newItem);
+              setCurrentPage("marketplace");
+            }}
+            currentUser={currentUser}
+          />
+          <MessagingInterface
+            isOpen={showMessages}
+            onClose={() => setShowMessages(false)}
+            currentUserId={currentUser.id}
+          />
+        </div>
     );
   }
 
@@ -410,29 +462,29 @@ export default function App() {
   if (currentPage === "manage") {
     return (
       <div className="min-h-screen bg-background">
-        <Header
-          currentUser={currentUser}
-          onSearch={handleSearch}
-          onProfileClick={handleProfileClick}
-          onMessagesClick={() => setShowMessages(true)}
-          onPostItemClick={handlePostItemClick}
-          onSignOut={handleSignOut}
-          searchQuery={searchQuery}
-          unreadMessages={1}
-        />
-        <ManageListings
-          onBack={handleBackToMarketplace}
-          userItems={getUserItems()}
-          onItemUpdate={handleItemUpdate}
-          onItemDelete={handleItemDelete}
-          currentUser={currentUser}
-        />
-        <MessagingInterface
-          isOpen={showMessages}
-          onClose={() => setShowMessages(false)}
-          currentUserId={currentUser.id}
-        />
-      </div>
+          <Header
+            currentUser={currentUser}
+            onSearch={handleSearch}
+            onProfileClick={handleProfileClick}
+            onMessagesClick={() => setShowMessages(true)}
+            onPostItemClick={handlePostItemClick}
+            onSignOut={handleSignOut}
+            searchQuery={searchQuery}
+            unreadMessages={1}
+          />
+          <ManageListings
+            onBack={handleBackToMarketplace}
+            userItems={getUserItems()}
+            onItemUpdate={handleItemUpdate}
+            onItemDelete={handleItemDelete}
+            currentUser={currentUser}
+          />
+          <MessagingInterface
+            isOpen={showMessages}
+            onClose={() => setShowMessages(false)}
+            currentUserId={currentUser.id}
+          />
+        </div>
     );
   }
 
@@ -461,57 +513,57 @@ export default function App() {
   if (selectedItem) {
     return (
       <div className="min-h-screen bg-background">
+          <Header
+            currentUser={currentUser}
+            onSearch={handleSearch}
+            onProfileClick={handleProfileClick}
+            onMessagesClick={() => setShowMessages(true)}
+            onPostItemClick={handlePostItemClick}
+            onSignOut={handleSignOut}
+            searchQuery={searchQuery}
+            unreadMessages={1}
+          />
+          <ItemDetail
+            item={selectedItem}
+            onBack={() => setSelectedItem(null)}
+            onContactSeller={handleContactSeller}
+            onViewProfile={handleViewProfile}
+            onTransactionComplete={handleTransactionComplete}
+          />
+          <MessagingInterface
+            isOpen={showMessages}
+            onClose={() => setShowMessages(false)}
+            currentUserId={currentUser.id}
+          />
+        </div>
+    );
+  }
+
+    return (
+      <div className="min-h-screen bg-background">
         <Header
           currentUser={currentUser}
           onSearch={handleSearch}
           onProfileClick={handleProfileClick}
           onMessagesClick={() => setShowMessages(true)}
           onPostItemClick={handlePostItemClick}
+          onSignInClick={() => setAuthMode("signin")}
           onSignOut={handleSignOut}
           searchQuery={searchQuery}
           unreadMessages={1}
         />
-        <ItemDetail
-          item={selectedItem}
-          onBack={() => setSelectedItem(null)}
-          onContactSeller={handleContactSeller}
-          onViewProfile={handleViewProfile}
-          onTransactionComplete={handleTransactionComplete}
+
+        <CategoryFilter
+          selectedDepartment={selectedDepartment}
+          selectedSemester={selectedSemester}
+          selectedType={selectedType}
+          onDepartmentChange={setSelectedDepartment}
+          onSemesterChange={setSelectedSemester}
+          onTypeChange={setSelectedType}
+          onClearFilters={clearFilters}
         />
-        <MessagingInterface
-          isOpen={showMessages}
-          onClose={() => setShowMessages(false)}
-          currentUserId={currentUser.id}
-        />
-      </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header
-        currentUser={currentUser}
-        onSearch={handleSearch}
-        onProfileClick={handleProfileClick}
-        onMessagesClick={() => setShowMessages(true)}
-        onPostItemClick={handlePostItemClick}
-        onSignInClick={() => setAuthMode("signin")}
-        onSignOut={handleSignOut}
-        searchQuery={searchQuery}
-        unreadMessages={1}
-      />
-
-      <CategoryFilter
-        selectedDepartment={selectedDepartment}
-        selectedSemester={selectedSemester}
-        selectedType={selectedType}
-        onDepartmentChange={setSelectedDepartment}
-        onSemesterChange={setSelectedSemester}
-        onTypeChange={setSelectedType}
-        onClearFilters={clearFilters}
-      />
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
+        <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Hero Section */}
         {searchQuery === "" && selectedDepartment === "All Departments" && (
           <div className="mb-12">
@@ -643,6 +695,6 @@ export default function App() {
           onSkip={handleSkipReview}
         />
       )}
-    </div>
+        </div>
   );
 }

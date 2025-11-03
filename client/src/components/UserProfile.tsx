@@ -1,4 +1,5 @@
 import { ArrowLeft, Star, MapPin, Calendar, BookOpen, MessageCircle, Settings, Edit, Award, TrendingUp, Package, Eye } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
@@ -6,6 +7,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ItemCard, Item } from "./ItemCard";
+import { itemsAPI, usersAPI } from "../utils/api";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface UserProfileProps {
@@ -106,6 +108,8 @@ const mockReviews = [
 ];
 
 export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userItems = mockUserItems, onManageListings, onViewRatings }: UserProfileProps) {
+  const [items, setItems] = useState<Item[]>(userItems || []);
+
   const handleItemClick = (item: Item) => {
     // Handle item click - could navigate to item detail
     console.log("Item clicked:", item);
@@ -115,6 +119,30 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
     // Handle contact seller
     console.log("Contact seller for:", item);
   };
+
+  // Load items for this profile from backend. If viewing own profile, use my-items endpoint.
+  useEffect(() => {
+    let mounted = true;
+    const loadItems = async () => {
+      try {
+        const userId = (user as any).id || (user as any)._id;
+        if (isOwnProfile) {
+          const data = await itemsAPI.getMyItems();
+          if (!mounted) return;
+          if (data?.items) setItems(data.items);
+        } else if (userId) {
+          const data = await usersAPI.getUserItems(userId);
+          if (!mounted) return;
+          if (data?.items) setItems(data.items);
+        }
+      } catch (err) {
+        console.error('Failed to load user items', err);
+      }
+    };
+
+    loadItems();
+    return () => { mounted = false; };
+  }, [user, isOwnProfile]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -236,13 +264,13 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
         {/* Tabs */}
         <Tabs defaultValue="listings" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="listings">Active Listings ({userItems.length})</TabsTrigger>
+            <TabsTrigger value="listings">Active Listings ({items.length})</TabsTrigger>
             <TabsTrigger value="reviews">Reviews ({user.reviewCount})</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings" className="space-y-6">
-            {userItems.length === 0 ? (
+            {items.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
@@ -259,7 +287,7 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userItems.map((item) => (
+                {items.map((item) => (
                   <ItemCard
                     key={item.id}
                     item={item}
