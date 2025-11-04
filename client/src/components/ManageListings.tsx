@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Package, CheckCircle, XCircle, MoreHorizontal, TrendingUp, MessageCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -27,43 +27,75 @@ interface ManageListingsProps {
   currentUser: any;
 }
 
-// Mock transaction data for sold items
-const mockTransactions = [
-  {
-    id: "1",
-    itemId: "1",
-    buyerName: "Priya Sharma",
-    buyerEmail: "priya.sharma@nitc.ac.in",
-    completedDate: "2024-01-10",
-    amount: 800,
-    status: "completed",
-    hasReview: true,
-    reviewRating: 5,
-    reviewComment: "Great seller, item was exactly as described!"
-  },
-  {
-    id: "2",
-    itemId: "2", 
-    buyerName: "Karthik Kumar",
-    buyerEmail: "karthik.kumar@nitc.ac.in",
-    completedDate: "2024-01-08",
-    amount: 0,
-    status: "completed",
-    hasReview: false
-  }
-];
-
-const itemStatusOptions = [
-  { value: "available", label: "Available", color: "default" },
-  { value: "sold", label: "Sold", color: "secondary" },
-  { value: "reserved", label: "Reserved", color: "outline" },
-  { value: "hidden", label: "Hidden", color: "destructive" }
-];
+// new: Transaction type and state
+interface Transaction {
+  _id?: string;
+  id?: string;
+  item?: string | { _id?: string; title?: string };
+  buyerName?: string;
+  buyerEmail?: string;
+  completedDate?: string;
+  amount?: number;
+  status?: string;
+  hasReview?: boolean;
+  reviewRating?: number;
+  reviewComment?: string;
+}
 
 export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, currentUser }: ManageListingsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+
+  // transactions state
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txError, setTxError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // fetch transactions for current user (as seller)
+    async function loadTransactions() {
+      setTxError(null);
+      setTxLoading(true);
+      try {
+        const sellerId = (currentUser && (currentUser.id ?? currentUser._id ?? currentUser.user?.id)) || '';
+        if (!sellerId) {
+          setTransactions([]);
+          setTxLoading(false);
+          return;
+        }
+
+        const headers: Record<string,string> = { "Accept": "application/json" };
+        const token = (currentUser && (currentUser.token ?? currentUser.accessToken ?? currentUser.jwt));
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        // robust API base detection (works in CRA, Vite or plain browser)
+        const apiFromProcess = (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_URL) ? process.env.REACT_APP_API_URL : undefined;
+        const apiFromImportMeta = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL)) ? (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL) : undefined;
+        const apiFromGlobal = (typeof (globalThis as any) !== "undefined" && (globalThis as any).REACT_APP_API_URL) ? (globalThis as any).REACT_APP_API_URL : undefined;
+        const API_BASE = apiFromProcess || apiFromImportMeta || apiFromGlobal || 'http://localhost:5000';
+
+        const url = `${API_BASE}/api/transactions?seller=${encodeURIComponent(sellerId)}`;
+
+        const res = await fetch(url, { headers });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `Status ${res.status}`);
+        }
+        const data = await res.json();
+        const list: Transaction[] = Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
+        setTransactions(list);
+      } catch (err: any) {
+        console.error("Failed to load transactions:", err);
+        setTxError(err?.message || "Failed to load transactions");
+        setTransactions([]);
+      } finally {
+        setTxLoading(false);
+      }
+    }
+
+    loadTransactions();
+  }, [currentUser]);
 
   const filteredItems = userItems.filter(item => {
     const matchesSearch = searchQuery === "" || 
@@ -195,7 +227,7 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
         <Tabs defaultValue="listings" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="listings">My Listings ({userItems.length})</TabsTrigger>
-            <TabsTrigger value="transactions">Transaction History ({mockTransactions.length})</TabsTrigger>
+            <TabsTrigger value="transactions">Transaction History ({transactions.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings" className="space-y-6">
@@ -315,6 +347,7 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                   ))}
                 </TableBody>
               </Table>
+
             </Card>
 
             {filteredItems.length === 0 && (
@@ -354,23 +387,42 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockTransactions.map((transaction) => {
-                      const item = userItems.find(i => i.id === transaction.itemId);
+                    {txLoading && (
+                      <TableRow>
+                        <TableCell colSpan={6}>Loading transactions...</TableCell>
+                      </TableRow>
+                    )}
+
+                    {!txLoading && transactions.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="text-center py-6">
+                            <CheckCircle className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
+                            <div>No transactions yet</div>
+                            <p className="text-sm text-muted-foreground">Your completed sales will appear here.</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+
+                    {!txLoading && transactions.map((transaction) => {
+                      const itemId = typeof transaction.item === "string" ? transaction.item : (transaction.item?._id || '');
+                      const item = userItems.find(i => i.id === itemId || i._id === itemId);
                       return (
-                        <TableRow key={transaction.id}>
+                        <TableRow key={transaction._id || transaction.id}>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{transaction.buyerName}</p>
+                              <p className="font-medium">{transaction.buyerName ?? "Buyer"}</p>
                               <p className="text-sm text-muted-foreground">{transaction.buyerEmail}</p>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <p className="font-medium">{item?.title || "Unknown Item"}</p>
+                            <p className="font-medium">{item?.title || (typeof transaction.item !== "string" ? transaction.item?.title : "Unknown Item")}</p>
                           </TableCell>
                           <TableCell>
-                            {transaction.amount > 0 ? `₹${transaction.amount}` : "Free"}
+                            {transaction.amount && transaction.amount > 0 ? `₹${transaction.amount}` : "Free"}
                           </TableCell>
-                          <TableCell>{transaction.completedDate}</TableCell>
+                          <TableCell>{transaction.completedDate ? new Date(transaction.completedDate).toLocaleDateString() : "-"}</TableCell>
                           <TableCell>
                             {transaction.hasReview ? (
                               <div className="flex items-center space-x-1">
@@ -390,14 +442,8 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                   </TableBody>
                 </Table>
 
-                {mockTransactions.length === 0 && (
-                  <div className="text-center py-12">
-                    <CheckCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3>No transactions yet</h3>
-                    <p className="text-muted-foreground">
-                      Your completed sales will appear here.
-                    </p>
-                  </div>
+                {txError && (
+                  <div className="text-sm text-destructive mt-4">Error loading transactions: {txError}</div>
                 )}
               </CardContent>
             </Card>
