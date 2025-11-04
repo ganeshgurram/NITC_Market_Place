@@ -3,6 +3,8 @@ const router = express.Router();
 const Transaction = require('../models/Transaction');
 const Item = require('../models/Item');
 const { auth } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 // Create a transaction
 router.post('/', auth, async (req, res) => {
@@ -131,6 +133,54 @@ router.get('/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching transaction:', error);
     res.status(500).json({ error: 'Error fetching transaction', message: error.message });
+  }
+});
+
+// List transactions (filter by query params)
+// Supports: ?seller=...&buyer=...&status=...&page=1&limit=20
+router.get('/', async (req, res) => {
+  try {
+    // Try to optionally authenticate user if Authorization header present
+    let requestUserId = null;
+    const authHeader = req.header('Authorization') || req.header('authorization');
+    if (authHeader) {
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const user = await User.findById(decoded.userId);
+        if (user) requestUserId = user._id;
+      } catch (e) {
+        // ignore auth errors for optional auth
+      }
+    }
+
+    const { seller, buyer, status, page = 1, limit = 50 } = req.query;
+
+    const query = {};
+    if (seller) query.seller = seller;
+    if (buyer) query.buyer = buyer;
+    if (status) query.status = status;
+
+    // If no explicit seller/buyer provided but we have an authenticated user,
+    // default to returning transactions where the user is buyer or seller.
+    if (!seller && !buyer && requestUserId) {
+      query.$or = [{ buyer: requestUserId }, { seller: requestUserId }];
+    }
+
+    const skip = (Math.max(Number(page), 1) - 1) * Number(limit);
+    const transactions = await Transaction.find(query)
+      .populate('item')
+      .populate('seller', 'name rating reviewCount')
+      .populate('buyer', 'name rating reviewCount')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    // Return shape compatible with various client expectations
+    res.json({ transactions });
+  } catch (error) {
+    console.error('Error listing transactions:', error);
+    res.status(500).json({ error: 'Error listing transactions', message: error.message });
   }
 });
 
