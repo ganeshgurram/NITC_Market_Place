@@ -7,7 +7,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ItemCard, Item } from "./ItemCard";
-import { itemsAPI, usersAPI } from "../utils/api";
+import { itemsAPI, usersAPI, reviewsAPI } from "../utils/api";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface UserProfileProps {
@@ -79,36 +79,11 @@ const mockUserItems: Item[] = [
   }
 ];
 
-// Mock reviews
-const mockReviews = [
-  {
-    id: "1",
-    reviewer: "Priya Sharma",
-    rating: 5,
-    comment: "Great seller! Book was exactly as described and very helpful.",
-    date: "2 weeks ago",
-    item: "Engineering Mathematics Textbook"
-  },
-  {
-    id: "2", 
-    reviewer: "Rahul Kumar",
-    rating: 4,
-    comment: "Quick response and fair price. Recommended!",
-    date: "1 month ago",
-    item: "Lab Equipment Rental"
-  },
-  {
-    id: "3",
-    reviewer: "Sneha Patel",
-    rating: 5,
-    comment: "Very reliable and trustworthy. Will deal again!",
-    date: "1 month ago",
-    item: "Stationery Bundle"
-  }
-];
+// reviews will be loaded from API
 
 export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userItems = mockUserItems, onManageListings, onViewRatings }: UserProfileProps) {
   const [items, setItems] = useState<Item[]>(userItems || []);
+  const [reviews, setReviews] = useState<any[]>([]);
 
   const handleItemClick = (item: Item) => {
     // Handle item click - could navigate to item detail
@@ -143,6 +118,26 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
     loadItems();
     return () => { mounted = false; };
   }, [user, isOwnProfile]);
+
+  // Load reviews for this user
+  useEffect(() => {
+    let mounted = true;
+    const loadReviews = async () => {
+      try {
+        const userId = (user as any).id || (user as any)._id;
+        if (userId) {
+          const data = await reviewsAPI.getUserReviews(userId);
+          if (!mounted) return;
+          if (data?.reviews) setReviews(data.reviews);
+        }
+      } catch (err) {
+        console.error('Failed to load user reviews', err);
+      }
+    };
+
+    loadReviews();
+    return () => { mounted = false; };
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -263,10 +258,9 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
 
         {/* Tabs */}
         <Tabs defaultValue="listings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="listings">Active Listings ({items.length})</TabsTrigger>
             <TabsTrigger value="reviews">Reviews ({user.reviewCount})</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings" className="space-y-6">
@@ -289,7 +283,7 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {items.map((item) => (
                   <ItemCard
-                    key={item.id}
+                    key={(item as any)._id || (item as any).id}
                     item={item}
                     onClick={handleItemClick}
                     onContactSeller={handleContactSeller}
@@ -300,7 +294,7 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
           </TabsContent>
 
           <TabsContent value="reviews" className="space-y-4">
-            {mockReviews.length === 0 ? (
+            {reviews.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
@@ -317,17 +311,17 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
               </Card>
             ) : (
               <div className="space-y-4">
-                {mockReviews.map((review) => (
-                  <Card key={review.id}>
+                {reviews.map((review: any) => (
+                  <Card key={review._id || review.id}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3">
                           <Avatar className="w-10 h-10">
-                            <AvatarFallback>{review.reviewer[0]}</AvatarFallback>
+                            <AvatarFallback>{(review.reviewer && review.reviewer.name) ? review.reviewer.name[0] : 'U'}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <h4 className="font-medium">{review.reviewer}</h4>
-                            <p className="text-sm text-muted-foreground">{review.date}</p>
+                            <h4 className="font-medium">{(review.reviewer && review.reviewer.name) ? review.reviewer.name : 'Anonymous'}</h4>
+                            <p className="text-sm text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-1">
@@ -345,7 +339,7 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
                       </div>
                       <p className="text-muted-foreground mb-2">{review.comment}</p>
                       <Badge variant="outline" className="text-xs">
-                        {review.item}
+                        {review.transaction && review.transaction.item && review.transaction.item.title ? review.transaction.item.title : (review.item || 'Item')}
                       </Badge>
                     </CardContent>
                   </Card>
@@ -354,40 +348,7 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
             )}
           </TabsContent>
 
-          <TabsContent value="activity" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm">Listed a new item: "Advanced Engineering Mathematics"</p>
-                      <p className="text-xs text-muted-foreground">3 days ago</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm">Received a 5-star review from Priya Sharma</p>
-                      <p className="text-xs text-muted-foreground">2 weeks ago</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm">Completed transaction for "Lab Equipment"</p>
-                      <p className="text-xs text-muted-foreground">1 month ago</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Activity tab removed as requested */}
         </Tabs>
       </div>
     </div>

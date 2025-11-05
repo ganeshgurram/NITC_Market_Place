@@ -198,7 +198,8 @@ router.delete('/:id', auth, async (req, res) => {
 // Get user's own items
 router.get('/user/my-items', auth, async (req, res) => {
   try {
-    const items = await Item.find({ seller: req.userId })
+    // Return only items owned by the user that are currently available
+    const items = await Item.find({ seller: req.userId, isAvailable: true })
       .populate('seller', 'name rating reviewCount')
       .sort({ createdAt: -1 });
 

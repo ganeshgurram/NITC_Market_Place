@@ -66,9 +66,16 @@ router.post('/', auth, [
 // Get reviews for a user
 router.get('/user/:userId', async (req, res) => {
   try {
+    // Populate reviewer and transaction -> item.title for display in UI
     const reviews = await Review.find({ reviewedUser: req.params.userId })
       .populate('reviewer', 'name rating')
-      .populate('transaction')
+      .populate({
+        path: 'transaction',
+        populate: {
+          path: 'item',
+          select: 'title'
+        }
+      })
       .sort({ createdAt: -1 });
 
     res.json({ reviews });
