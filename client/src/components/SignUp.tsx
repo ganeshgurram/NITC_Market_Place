@@ -9,7 +9,7 @@ import { Separator } from "./ui/separator";
 import { Alert, AlertDescription } from "./ui/alert";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { authAPI } from "../utils/api";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface SignUpProps {
   onSignUp: (user: any) => void;
@@ -60,6 +60,7 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
     if (!formData.email.endsWith("@nitc.ac.in")) return "Please use your NITC email address";
     if (formData.password.length < 6) return "Password must be at least 6 characters";
     if (formData.password !== formData.confirmPassword) return "Passwords don't match";
+    if (!formData.phone || formData.phone.trim().length < 6) return "Please enter a valid phone number";
     return null;
   };
 
@@ -229,6 +230,18 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
                     />
                   </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="e.g. 9876543210"
+                        required
+                      />
+                    </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
@@ -286,7 +299,7 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
                 <form onSubmit={handleFinalSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label>Department</Label>
-                    <Select value={formData.department} onValueChange={(value) => setFormData({ ...formData, department: value })}>
+                    <Select value={formData.department} onValueChange={(value:any) => setFormData({ ...formData, department: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select your department" />
                       </SelectTrigger>
@@ -302,7 +315,7 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
 
                   <div className="space-y-2">
                     <Label>Academic Year</Label>
-                    <Select value={formData.year} onValueChange={(value) => setFormData({ ...formData, year: value })}>
+                    <Select value={formData.year} onValueChange={(value:any) => setFormData({ ...formData, year: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select your academic year" />
                       </SelectTrigger>

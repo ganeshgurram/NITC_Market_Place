@@ -31,25 +31,40 @@ router.get('/:id', async (req, res) => {
 // Update user profile
 router.put('/profile', auth, async (req, res) => {
   try {
-    const { name, phone, hostel, department, semester } = req.body;
-    
+    // Only allow a restricted set of fields to be updated by users
+    const { phone, hostel, semester, avatarUrl, currentPassword, newPassword } = req.body;
+
     const user = await User.findById(req.userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (name) user.name = name;
     if (phone) user.phone = phone;
     if (hostel) user.hostel = hostel;
-    if (department) user.department = department;
     if (semester) user.semester = semester;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl; // allow clearing by sending null
+
+    // If user intends to change password, require currentPassword and verify it
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required to set a new password' });
+      }
+
+      const isMatch = await user.comparePassword(currentPassword);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+
+      user.password = newPassword; // pre-save hook will hash
+    }
 
     await user.save();
 
+    // Return sanitized user object (toJSON removes password)
     res.json({ 
       message: 'Profile updated successfully',
-      user 
+      user: user.toJSON()
     });
   } catch (error) {
     console.error('Error updating profile:', error);

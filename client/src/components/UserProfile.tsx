@@ -1,4 +1,4 @@
-import { ArrowLeft, Star, MapPin, Calendar, BookOpen, MessageCircle, Settings, Edit, Award, TrendingUp, Package, Eye } from "lucide-react";
+import { ArrowLeft, Star, MapPin, Calendar, BookOpen, MessageCircle, Settings, Edit, Award, TrendingUp, Package, Eye, Camera } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -128,8 +128,13 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, onMana
           <CardContent className="p-6">
             <div className="flex items-start space-x-6">
               <Avatar className="w-24 h-24">
-                <AvatarImage src={user.avatar} />
-                <AvatarFallback className="text-2xl">{user.name[0]}</AvatarFallback>
+                {((user as any).avatar || (user as any).avatarUrl) ? (
+                  <AvatarImage src={(user as any).avatar || (user as any).avatarUrl} />
+                ) : (
+                  <AvatarFallback className="text-2xl">
+                    <Camera className="w-8 h-8 text-muted-foreground" />
+                  </AvatarFallback>
+                )}
               </Avatar>
               
               <div className="flex-1">
@@ -147,33 +152,37 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, onMana
                 </div>
 
                 {/* Rating and Stats */}
-                <div className="flex items-center space-x-6 mb-4">
+                  <div className="flex items-center space-x-6 mb-4">
                   <div className="flex items-center space-x-2">
                     <div className="flex items-center space-x-1">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
                           className={`w-4 h-4 ${
-                            i < Math.floor(user.rating) 
+                            i < Math.floor(user.rating || 0)  // Added fallback for rating
                               ? 'fill-yellow-400 text-yellow-400' 
                               : 'text-gray-300'
                           }`}
                         />
                       ))}
                     </div>
-                    <span className="font-medium">{user.rating}</span>
-                    <span className="text-muted-foreground">({user.reviewCount} reviews)</span>
+                    <span className="font-medium">{user.rating?.toFixed(1) || 'No ratings'}</span>
                   </div>
                   
                   <div className="flex items-center space-x-1 text-muted-foreground">
                     <Calendar className="w-4 h-4" />
                     <span>
-                      Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "6 months ago"}
+                      {user.createdAt 
+                        ? `Joined ${new Date(user.createdAt).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}`
+                        : "Join date not available"
+                      }
                     </span>
                   </div>
-                </div>
-
-                {/* Academic Info */}
+                </div>                {/* Academic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
                     <BookOpen className="w-5 h-5 text-blue-600" />

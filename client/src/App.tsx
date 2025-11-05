@@ -8,6 +8,7 @@ import { MessagingInterface } from "./components/MessagingInterface";
 import { SignIn } from "./components/SignIn";
 import { SignUp } from "./components/SignUp";
 import { UserProfile } from "./components/UserProfile";
+import EditProfile from "./components/EditProfile";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { ListItemPage } from "./components/ListItemPage";
 import { ManageListings } from "./components/ManageListings";
@@ -203,6 +204,18 @@ export default function App() {
     } else {
       setCurrentPage("profile");
     }
+  };
+
+  const handleEditProfile = () => {
+    setCurrentPage('profile/edit');
+  };
+
+  const handleProfileSave = (updatedUser: any) => {
+    // Merge updated user into currentUser and persist
+    const next = { ...currentUser, ...updatedUser };
+    setCurrentUser(next);
+    try { sessionStorage.setItem('nm_currentUser', JSON.stringify(next)); } catch (e) {}
+    setCurrentPage('profile');
   };
 
   const handlePostItemClick = () => {
@@ -414,6 +427,7 @@ export default function App() {
             user={currentUser}
             onBack={handleBackToMarketplace}
             isOwnProfile={true}
+            onEdit={handleEditProfile}
             userItems={getUserItems()}
             onManageListings={handleManageListingsClick}
             onViewRatings={() => handleViewRatings(currentUser)}
@@ -485,6 +499,36 @@ export default function App() {
             currentUserId={currentUser.id}
           />
         </div>
+    );
+  }
+
+  // Show edit profile page
+  if (currentPage === 'profile/edit') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header
+          currentUser={currentUser}
+          onSearch={handleSearch}
+          onProfileClick={handleProfileClick}
+          onMessagesClick={() => setShowMessages(true)}
+          onPostItemClick={handlePostItemClick}
+          onSignOut={handleSignOut}
+          searchQuery={searchQuery}
+          unreadMessages={1}
+        />
+        <div className="max-w-6xl mx-auto p-6">
+          <EditProfile
+            currentUser={currentUser}
+            onCancel={() => setCurrentPage('profile')}
+            onSave={handleProfileSave}
+          />
+        </div>
+        <MessagingInterface
+          isOpen={showMessages}
+          onClose={() => setShowMessages(false)}
+          currentUserId={currentUser.id}
+        />
+      </div>
     );
   }
 
