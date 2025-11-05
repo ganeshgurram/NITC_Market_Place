@@ -372,8 +372,10 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item) => (
-                    <TableRow key={item.id}>
+                  {filteredItems.map((item) => {
+                    const itemId = item.id || (item as any)._id;
+                    return (
+                    <TableRow key={itemId}>
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <ImageWithFallback
@@ -418,23 +420,23 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                             </DropdownMenuItem>
                             {item.isAvailable ? (
                               <>
-                                <DropdownMenuItem onClick={() => handleStatusChange(item.id, "sold")}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(itemId, "sold")}>
                                   <CheckCircle className="w-4 h-4 mr-2" />
                                   Mark as Sold
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(item.id, "hidden")}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(itemId, "hidden")}>
                                   <EyeOff className="w-4 h-4 mr-2" />
                                   Hide Listing
                                 </DropdownMenuItem>
                               </>
                             ) : (
-                              <DropdownMenuItem onClick={() => handleStatusChange(item.id, "available")}>
+                              <DropdownMenuItem onClick={() => handleStatusChange(itemId, "available")}>
                                 <Package className="w-4 h-4 mr-2" />
                                 Mark as Available
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
-                              onClick={() => setDeleteItemId(item.id)}
+                              onClick={() => setDeleteItemId(itemId)}
                               className="text-destructive"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
@@ -444,7 +446,8 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
 

@@ -5,6 +5,11 @@ const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
+// Health check endpoint for debugging
+router.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Reviews API is working' });
+});
+
 // Create a review
 router.post('/', auth, [
   body('reviewedUserId').notEmpty().withMessage('Reviewed user ID is required'),
@@ -13,8 +18,12 @@ router.post('/', auth, [
   body('comment').trim().notEmpty().withMessage('Comment is required')
 ], async (req, res) => {
   try {
+    console.log('Review submission received:', req.body);
+    console.log('Authenticated user:', req.userId);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -40,15 +49,24 @@ router.post('/', auth, [
     });
 
     await review.save();
+    console.log('Review saved successfully:', review._id);
 
     // Update user's rating
     const reviews = await Review.find({ reviewedUser: reviewedUserId });
+    console.log(`Found ${reviews.length} reviews for user ${reviewedUserId}`);
+
     const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-    
-    await User.findByIdAndUpdate(reviewedUserId, {
-      rating: Math.round(avgRating * 10) / 10,
-      reviewCount: reviews.length
-    });
+    console.log(`Calculated average rating: ${avgRating}`);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      reviewedUserId,
+      {
+        rating: Math.round(avgRating * 10) / 10,
+        reviewCount: reviews.length
+      },
+      { new: true }
+    );
+    console.log('Updated user rating:', updatedUser?.rating, 'reviewCount:', updatedUser?.reviewCount);
 
     await review.populate('reviewer', 'name');
     await review.populate('reviewedUser', 'name');

@@ -9,7 +9,7 @@ import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { Item } from "./ItemCard";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface SubmitReviewProps {
   onBack: () => void;
@@ -85,9 +85,9 @@ export function SubmitReview({ onBack, onSubmit, transaction }: SubmitReviewProp
       return;
     }
 
-    if (!comment.trim()) {
+    if (!comment.trim() || comment.trim().length < 10) {
       toast("Please add a comment", {
-        description: "A written review is required"
+        description: "A written review of at least 10 characters is required"
       });
       return;
     }
@@ -101,8 +101,8 @@ export function SubmitReview({ onBack, onSubmit, transaction }: SubmitReviewProp
       const review = {
         id: Date.now().toString(),
         transactionId: transaction.id,
-        sellerId: transaction.seller.id,
-        itemId: transaction.item.id,
+        sellerId: transaction.seller.id || (transaction.seller as any)._id,
+        itemId: (transaction.item as any).id || (transaction.item as any)._id,
         buyerName: "Current User", // This would come from auth
         ratings,
         overallRating: Math.round(overallRating * 10) / 10,
@@ -111,15 +111,9 @@ export function SubmitReview({ onBack, onSubmit, transaction }: SubmitReviewProp
         helpful: 0
       };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      onSubmit(review);
+      // Call parent handler which will call the API
+      await onSubmit(review);
       setIsSubmitted(true);
-      
-      toast("Review submitted successfully!", {
-        description: "Thank you for helping the NITC community"
-      });
     } catch (error) {
       toast("Failed to submit review", {
         description: "Please try again later"
