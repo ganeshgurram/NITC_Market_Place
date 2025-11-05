@@ -212,19 +212,26 @@ export function SubmitReview({ onBack, onSubmit, transaction }: SubmitReviewProp
           </CardHeader>
           <CardContent className="space-y-6">
             {reviewAspects.map((aspect) => (
-              <div key={aspect.id} className="space-y-3">
+              <div key={aspect.id} className={`space-y-3 p-3 rounded-lg border-2 transition-colors ${
+                !ratings[aspect.id] ? 'border-amber-200 bg-amber-50/30' : 'border-transparent'
+              }`}>
                 <div>
-                  <Label className="text-base">{aspect.label}</Label>
+                  <Label className="text-base flex items-center gap-2">
+                    {aspect.label}
+                    {!ratings[aspect.id] && (
+                      <span className="text-xs text-amber-600 font-normal">(Required)</span>
+                    )}
+                  </Label>
                   <p className="text-sm text-muted-foreground">{aspect.description}</p>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <div className="flex space-x-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
-                        className="p-1 transition-colors"
+                        className="p-1 transition-colors hover:scale-110"
                         onMouseEnter={() => setHoverRatings(prev => ({ ...prev, [aspect.id]: star }))}
                         onMouseLeave={() => setHoverRatings(prev => ({ ...prev, [aspect.id]: 0 }))}
                         onClick={() => handleRatingChange(aspect.id, star)}
@@ -239,7 +246,7 @@ export function SubmitReview({ onBack, onSubmit, transaction }: SubmitReviewProp
                       </button>
                     ))}
                   </div>
-                  
+
                   {ratings[aspect.id] && (
                     <span className="text-sm text-muted-foreground ml-3">
                       {ratingLabels[ratings[aspect.id] as keyof typeof ratingLabels]}
@@ -258,17 +265,35 @@ export function SubmitReview({ onBack, onSubmit, transaction }: SubmitReviewProp
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="comment">Share your experience *</Label>
+              <Label htmlFor="comment" className="flex items-center gap-2">
+                Share your experience *
+                {comment.trim().length < 10 && comment.trim().length > 0 && (
+                  <span className="text-xs text-amber-600 font-normal">
+                    ({10 - comment.trim().length} more characters needed)
+                  </span>
+                )}
+              </Label>
               <Textarea
                 id="comment"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Tell other students about your experience with this seller. Was the item as described? Was the transaction smooth? Any other helpful details..."
                 rows={4}
-                className="resize-none"
+                className={`resize-none ${
+                  comment.trim().length > 0 && comment.trim().length < 10
+                    ? 'border-amber-300 focus:border-amber-400'
+                    : ''
+                }`}
               />
-              <p className="text-sm text-muted-foreground">
-                Minimum 10 characters ({comment.length}/500)
+              <p className={`text-sm flex items-center justify-between ${
+                comment.trim().length >= 10 ? 'text-green-600' : 'text-muted-foreground'
+              }`}>
+                <span>
+                  {comment.trim().length >= 10 ? '✓ Minimum length met' : `Minimum 10 characters`}
+                </span>
+                <span className={comment.length > 450 ? 'text-amber-600' : ''}>
+                  {comment.length}/500
+                </span>
               </p>
             </div>
 
@@ -282,27 +307,47 @@ export function SubmitReview({ onBack, onSubmit, transaction }: SubmitReviewProp
         </Card>
 
         {/* Submit Button */}
-        <div className="flex space-x-4">
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || Object.keys(ratings).length < reviewAspects.length || !comment.trim()}
-            className="flex-1"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                Submitting Review...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4 mr-2" />
-                Submit Review
-              </>
-            )}
-          </Button>
-          <Button variant="outline" onClick={onBack}>
-            Cancel
-          </Button>
+        <div className="space-y-3">
+          {/* Validation Helper */}
+          {(Object.keys(ratings).length < reviewAspects.length || !comment.trim() || comment.trim().length < 10) && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+              <p className="font-medium text-amber-800 mb-1">Please complete the following:</p>
+              <ul className="list-disc list-inside text-amber-700 space-y-1">
+                {Object.keys(ratings).length < reviewAspects.length && (
+                  <li>Rate all {reviewAspects.length} categories ({reviewAspects.length - Object.keys(ratings).length} remaining)</li>
+                )}
+                {!comment.trim() && (
+                  <li>Write a review comment</li>
+                )}
+                {comment.trim() && comment.trim().length < 10 && (
+                  <li>Review must be at least 10 characters (currently {comment.trim().length})</li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex space-x-4">
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || Object.keys(ratings).length < reviewAspects.length || !comment.trim() || comment.trim().length < 10}
+              className="flex-1"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Submitting Review...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit Review
+                </>
+              )}
+            </Button>
+            <Button variant="outline" onClick={onBack}>
+              Cancel
+            </Button>
+          </div>
         </div>
       </div>
     </div>
