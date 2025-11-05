@@ -100,7 +100,9 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
       }
       const form = new FormData();
       form.append('image', file);
-      const res = await fetch('/api/upload', {
+      // Upload to backend (use VITE_API_URL if set, otherwise default to localhost:5000)
+      const uploadEndpoint = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/upload`;
+      const res = await fetch(uploadEndpoint, {
         method: 'POST',
         body: form
       });
@@ -109,9 +111,14 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
         toast.error('Image upload failed');
         return;
       }
+
+      // Build a full URL for the uploaded file so the image loads correctly from any origin
+      const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/i, '');
+      const fullUrl = data.url.startsWith('http') ? data.url : `${backendBase}${data.url}`;
+
       setFormData(prev => ({
         ...prev,
-        images: [...prev.images, data.url]
+        images: [...prev.images, fullUrl]
       }));
     } catch (error) {
       toast.error('Image upload error');
@@ -127,7 +134,9 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
     if (!formData.description.trim()) newErrors.description = "Description is required";
     if (!formData.category) newErrors.category = "Please select a category";
     if (!formData.type) newErrors.type = "Please select listing type";
-    if (formData.type === "sale" && !formData.price) newErrors.price = "Price is required for sale items";
+  // Price is mandatory for all listings
+  if (!formData.price || (typeof formData.price === 'string' && formData.price.trim() === '')) newErrors.price = "Price is required";
+  else if (isNaN(Number(formData.price)) || Number(formData.price) < 0) newErrors.price = "Enter a valid non-negative price";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -165,7 +174,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
       
       onSubmit({
         ...formData,
-        price: formData.type === "sale" ? parseInt(formData.price) : undefined
+        price: formData.price !== undefined && formData.price !== null && formData.price !== '' ? Number(formData.price) : undefined
       });
     } catch (error) {
       console.error("Error submitting item:", error);
@@ -315,19 +324,17 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
                     {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
                   </div>
 
-                  {formData.type === "sale" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Price (₹) *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        value={formData.price}
-                        onChange={(e) => setFormData({...formData, price: e.target.value})}
-                        placeholder="Enter price in rupees"
-                      />
-                      {errors.price && <p className="text-sm text-destructive">{errors.price}</p>}
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price (₹) *</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      placeholder="Enter price in rupees"
+                    />
+                    {errors.price && <p className="text-sm text-destructive">{errors.price}</p>}
+                  </div>
                 </div>
 
                 {/* Academic Details */}

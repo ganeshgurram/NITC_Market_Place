@@ -87,7 +87,7 @@ router.post('/', auth, [
   body('title').trim().notEmpty().withMessage('Title is required'),
   body('description').trim().notEmpty().withMessage('Description is required'),
   body('type').isIn(['sale', 'rent', 'free']).withMessage('Invalid type'),
-  body('category').isIn(['textbook', 'lab-equipment', 'stationery', 'other']).withMessage('Invalid category'),
+  body('category').isIn(['textbook', 'lab-equipment', 'stationery', 'electronics', 'other']).withMessage('Invalid category'),
   body('department').trim().notEmpty().withMessage('Department is required'),
   body('condition').isIn(['new', 'like-new', 'good', 'fair']).withMessage('Invalid condition'),
   body('location').trim().notEmpty().withMessage('Location is required')

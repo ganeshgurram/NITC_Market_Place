@@ -24,7 +24,7 @@ export interface Item {
     reviewCount: number;
   };
   location: string;
-  postedAt: string;
+  createdAt: string;
   isAvailable: boolean;
 }
 
@@ -115,7 +115,7 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="w-3 h-3" />
-                <span>{item.postedAt}</span>
+                <span>{item.createdAt}</span>
               </div>
             </div>
 

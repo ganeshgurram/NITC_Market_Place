@@ -3,6 +3,7 @@ import { Header } from "./components/Header";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { ItemCard, Item } from "./components/ItemCard";
 import { ItemDetail } from "./components/ItemDetail";
+import SellerProfile from "./components/SellerProfile";
 import { PostItemDialog } from "./components/PostItemDialog";
 import { MessagingInterface } from "./components/MessagingInterface";
 import { SignIn } from "./components/SignIn";
@@ -189,12 +190,11 @@ export default function App() {
   };
 
   const handleViewProfile = (sellerId: string) => {
+    // Navigate to seller profile page (internal lightweight routing)
     if (sellerId === currentUser?.id) {
       setCurrentPage("profile");
     } else {
-      toast("Opening user profile", {
-        description: "Profile functionality would open here"
-      });
+      setCurrentPage(`seller/${sellerId}`);
     }
   };
 
@@ -323,7 +323,8 @@ export default function App() {
     if (path.startsWith('/item/')) {
       const parts = path.split('/').filter(Boolean);
       const id = parts[1] || parts[0];
-      if (id) {
+      // guard against malformed URLs like /item/undefined
+      if (id && id !== 'undefined') {
         (async () => {
           try {
             const res = await itemsAPI.getById(id);
@@ -356,7 +357,8 @@ export default function App() {
     // if navigating to an item detail, load it
     if (currentPage.startsWith('item/')) {
       const id = currentPage.split('/')[1];
-      if (id) {
+      // guard against malformed ids (e.g. 'undefined')
+      if (id && id !== 'undefined') {
         (async () => {
           try {
             const res = await itemsAPI.getById(id);
@@ -469,6 +471,31 @@ export default function App() {
             currentUserId={currentUser.id}
           />
         </div>
+    );
+  }
+
+  // Show seller profile page
+  if (currentPage.startsWith('seller/')) {
+    const id = currentPage.split('/')[1];
+    return (
+      <div className="min-h-screen bg-background">
+        <Header
+          currentUser={currentUser}
+          onSearch={handleSearch}
+          onProfileClick={handleProfileClick}
+          onMessagesClick={() => setShowMessages(true)}
+          onPostItemClick={handlePostItemClick}
+          onSignOut={handleSignOut}
+          searchQuery={searchQuery}
+          unreadMessages={1}
+        />
+        <SellerProfile sellerId={id} onBack={handleBackToMarketplace} onContactSeller={handleContactSeller} />
+        <MessagingInterface
+          isOpen={showMessages}
+          onClose={() => setShowMessages(false)}
+          currentUserId={currentUser.id}
+        />
+      </div>
     );
   }
 
@@ -711,9 +738,9 @@ export default function App() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map((item) => (
+            {filteredItems.map((item, idx) => (
               <ItemCard
-                key={item.id}
+                key={item.id ?? (item as any)._id ?? idx}
                 item={item}
                 onClick={handleItemClick}
                 onContactSeller={handleContactSeller}

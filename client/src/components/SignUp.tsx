@@ -30,11 +30,15 @@ const departments = [
 ];
 
 const years = [
-  "1st Year",
-  "2nd Year", 
-  "3rd Year",
-  "4th Year",
-  "PhD Scholar"
+  "1st Semester",
+  "2nd Semester", 
+  "3rd Semester",
+  "4th Semester",
+  "5th Semester",
+  "6th Semester",
+  "7th Semester",
+  "8th Semester", 
+  "PhD Schloar"
 ];
 
 export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
@@ -44,7 +48,7 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
     password: "",
     confirmPassword: "",
     department: "",
-    year: "",
+    semester: "",
     rollNumber: "",
     phone: "",
     hostel: ""
@@ -66,7 +70,7 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
 
   const validateStep2 = () => {
     if (!formData.department) return "Please select your department";
-    if (!formData.year) return "Please select your academic year";
+    if (!formData.semester) return "Please select your academic year";
     if (!formData.rollNumber.trim()) return "Roll number is required";
     return null;
   };
@@ -95,7 +99,7 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
 
     try {
       // Extract semester from year
-      const semester = formData.year.split(' ')[0]; // "1st Year" -> "1st" -> "1"
+      const semester = formData.semester.split(' ')[0]; // "1st Year" -> "1st" -> "1"
       
       const response = await authAPI.signup({
         name: formData.fullName,
@@ -314,10 +318,10 @@ export function SignUp({ onSignUp, onSwitchToSignIn }: SignUpProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Academic Year</Label>
-                    <Select value={formData.year} onValueChange={(value:any) => setFormData({ ...formData, year: value })}>
+                    <Label>Academic Semester </Label>
+                    <Select value={formData.semester} onValueChange={(value:any) => setFormData({ ...formData, semester: value })}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select your academic year" />
+                        <SelectValue placeholder="Select your academic Semester" />
                       </SelectTrigger>
                       <SelectContent>
                         {years.map((year) => (

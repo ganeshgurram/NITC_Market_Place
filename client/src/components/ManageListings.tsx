@@ -16,8 +16,9 @@ export interface Item extends BaseItem {
   status?: string;
   messages?: number;
   views?: number;
+  _id?: string; // MongoDB ID field
 }
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface ManageListingsProps {
   onBack: () => void;
@@ -69,11 +70,8 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
         const token = (currentUser && (currentUser.token ?? currentUser.accessToken ?? currentUser.jwt));
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        // robust API base detection (works in CRA, Vite or plain browser)
-        const apiFromProcess = (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_URL) ? process.env.REACT_APP_API_URL : undefined;
-        const apiFromImportMeta = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL)) ? (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL) : undefined;
-        const apiFromGlobal = (typeof (globalThis as any) !== "undefined" && (globalThis as any).REACT_APP_API_URL) ? (globalThis as any).REACT_APP_API_URL : undefined;
-        const API_BASE = apiFromProcess || apiFromImportMeta || apiFromGlobal || 'http://localhost:5000';
+        // Use Vite environment variables
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
         const url = `${API_BASE}/api/transactions?seller=${encodeURIComponent(sellerId)}`;
 
@@ -272,8 +270,8 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item) => (
-                    <TableRow key={item.id}>
+                  {filteredItems.map((item, idx) => (
+                    <TableRow key={item.id ?? (item as any)._id ?? idx}>
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <ImageWithFallback
@@ -297,7 +295,7 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                       </TableCell>
                       <TableCell>{getStatusBadge(item)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {item.postedAt}
+                        {item.createdAt}
                       </TableCell>
                       <TableCell>{item.views || 0}</TableCell>
                       <TableCell>

@@ -248,9 +248,9 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, onMana
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {items.map((item) => (
+                {items.map((item, idx) => (
                   <ItemCard
-                    key={(item as any)._id || (item as any).id}
+                    key={(item as any)._id || (item as any).id || idx}
                     item={item}
                     onClick={handleItemClick}
                     onContactSeller={handleContactSeller}

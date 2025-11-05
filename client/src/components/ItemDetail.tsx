@@ -125,7 +125,7 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
             </div>
             <div className="flex items-center space-x-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>Posted: {item.postedAt}</span>
+              <span>Posted: {item.createdAt}</span>
             </div>
           </div>
 
@@ -155,7 +155,7 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
                 </div>
                 <Button 
                   variant="outline" 
-                  onClick={() => onViewProfile(item.seller.id)}
+                  onClick={() => onViewProfile(item.seller.id ?? (item.seller as any)._id)}
                 >
                   View Profile
                 </Button>
