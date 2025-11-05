@@ -71,8 +71,8 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
             </Badge>
           </div>
           {!item.isAvailable && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <Badge variant="destructive">Not Available</Badge>
+            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+              <Badge variant="destructive" className="text-base px-4 py-2">SOLD</Badge>
             </div>
           )}
         </div>

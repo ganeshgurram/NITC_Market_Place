@@ -22,7 +22,7 @@ import { Card, CardContent } from "./components/ui/card";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
 import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import { itemsAPI } from "./utils/api";
+import { itemsAPI, reviewsAPI, transactionsAPI } from "./utils/api";
 
 // No mock items: load items from sessionStorage or start with empty list
 
@@ -57,9 +57,12 @@ export default function App() {
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
   const [selectedSemester, setSelectedSemester] = useState("All Semesters");
   const [selectedType, setSelectedType] = useState("All Types");
+  const [selectedAvailability, setSelectedAvailability] = useState("Available Only");
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
+  const [selectedSellerForMessage, setSelectedSellerForMessage] = useState<any>(null);
+  const [selectedItemForMessage, setSelectedItemForMessage] = useState<any>(null);
   const [items, setItems] = useState<Item[]>(() => {
     try {
       const raw = sessionStorage.getItem('nm_items');
@@ -76,22 +79,25 @@ export default function App() {
 
   // Filter items based on search and filters
   const filteredItems = items.filter(item => {
-    const matchesSearch = searchQuery === "" || 
+    const matchesSearch = searchQuery === "" ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesDepartment = selectedDepartment === "All Departments" || 
+
+    const matchesDepartment = selectedDepartment === "All Departments" ||
       item.department === selectedDepartment;
-    
-    const matchesSemester = selectedSemester === "All Semesters" || 
+
+    const matchesSemester = selectedSemester === "All Semesters" ||
       item.semester === selectedSemester.split(" ")[0];
-    
-    const matchesType = selectedType === "All Types" || 
+
+    const matchesType = selectedType === "All Types" ||
       (selectedType === "For Sale" && item.type === "sale") ||
       (selectedType === "For Rent" && item.type === "rent") ||
       (selectedType === "Free/Donation" && item.type === "free");
 
-    return matchesSearch && matchesDepartment && matchesSemester && matchesType;
+    const matchesAvailability = selectedAvailability === "All Items" ||
+      (selectedAvailability === "Available Only" && item.isAvailable);
+
+    return matchesSearch && matchesDepartment && matchesSemester && matchesType && matchesAvailability;
   });
 
   const handleSearch = (query: string) => {
@@ -102,15 +108,27 @@ export default function App() {
     setSelectedDepartment("All Departments");
     setSelectedSemester("All Semesters");
     setSelectedType("All Types");
+    setSelectedAvailability("Available Only");
   };
 
   const handleItemClick = (item: Item) => {
     setSelectedItem(item);
     // navigate to item detail URL (kept in state; RouterSync syncs URL)
-    setCurrentPage(`item/${item.id}`);
+    const itemId = item.id || (item as any)._id;
+    setCurrentPage(`item/${itemId}`);
   };
 
   const handleContactSeller = (item: Item) => {
+    setSelectedSellerForMessage({
+      id: item.seller.id || item.seller._id,
+      name: item.seller.name,
+      rating: item.seller.rating
+    });
+    setSelectedItemForMessage({
+      id: item.id || item._id,
+      title: item.title,
+      images: item.images
+    });
     setShowMessages(true);
     toast(`Opening chat with ${item.seller.name}`, {
       description: `About: ${item.title}`
@@ -150,6 +168,8 @@ export default function App() {
     setSelectedItem(null);
     setShowPostDialog(false);
     setShowMessages(false);
+    setSelectedSellerForMessage(null);
+    setSelectedItemForMessage(null);
     // Clear session storage for user and page but keep items persisted
     try {
       sessionStorage.removeItem('nm_currentUser');
@@ -160,6 +180,12 @@ export default function App() {
     toast("Signed out successfully", {
       description: "You've been signed out of your account"
     });
+  };
+
+  const handleCloseMessages = () => {
+    setShowMessages(false);
+    setSelectedSellerForMessage(null);
+    setSelectedItemForMessage(null);
   };
 
   const handlePostItem = async (newItem: any) => {
@@ -235,7 +261,10 @@ export default function App() {
 
   const handleItemUpdate = (itemId: string, updates: Partial<Item>) => {
     setItems(prev => {
-      const next = prev.map(item => item.id === itemId ? { ...item, ...updates } : item);
+      const next = prev.map(item => {
+        const currentItemId = item.id || (item as any)._id;
+        return currentItemId === itemId ? { ...item, ...updates } : item;
+      });
       try { sessionStorage.setItem('nm_items', JSON.stringify(next)); } catch (e) {}
       return next;
     });
@@ -243,16 +272,65 @@ export default function App() {
 
   const handleItemDelete = (itemId: string) => {
     setItems(prev => {
-      const next = prev.filter(item => item.id !== itemId);
+      const next = prev.filter(item => {
+        const currentItemId = item.id || (item as any)._id;
+        return currentItemId !== itemId;
+      });
       try { sessionStorage.setItem('nm_items', JSON.stringify(next)); } catch (e) {}
       return next;
     });
   };
 
-  const handleReviewSubmit = (review: any) => {
-    setReviews(prev => [...prev, review]);
-    setCurrentPage("marketplace");
-    setSelectedTransaction(null);
+  const handleReviewSubmit = async (review: any) => {
+    try {
+      console.log('Submitting review:', review);
+
+      // Submit review to backend
+      const response = await reviewsAPI.create({
+        reviewedUserId: review.sellerId,
+        transactionId: review.transactionId,
+        rating: review.overallRating,
+        comment: review.comment,
+        categories: {
+          communication: review.ratings.communication || 0,
+          itemCondition: review.ratings.item_condition || 0,
+          punctuality: review.ratings.transaction || 0
+        }
+      });
+
+      console.log('Review submitted successfully:', response);
+
+      // Refresh items to get updated seller ratings
+      try {
+        const itemsData = await itemsAPI.getAll();
+        if (itemsData?.items) {
+          setItems(itemsData.items);
+          try { sessionStorage.setItem('nm_items', JSON.stringify(itemsData.items)); } catch (e) {}
+        }
+      } catch (e) {
+        console.error('Failed to refresh items:', e);
+      }
+
+      setReviews(prev => [...prev, review]);
+      setCurrentPage("marketplace");
+      setSelectedTransaction(null);
+
+      toast("Review submitted successfully!", {
+        description: "Thank you for your feedback"
+      });
+    } catch (error: any) {
+      console.error('Failed to submit review:', error);
+      console.error('Error details:', error.response?.data || error.message);
+
+      const errorMessage = error.response?.data?.error || error.message || "Failed to submit review";
+      const errorDetails = error.response?.data?.errors
+        ? error.response.data.errors.map((e: any) => e.msg).join(', ')
+        : "Please try again later";
+
+      toast(errorMessage, {
+        description: errorDetails
+      });
+    }
   };
 
   const handleViewRatings = (user: any) => {
@@ -265,17 +343,72 @@ export default function App() {
     setCurrentPage("review");
   };
 
-  const handleTransactionComplete = (item: Item) => {
-    // Mock transaction completion
-    const transaction = {
-      id: Date.now().toString(),
-      item,
-      seller: item.seller,
-      completedDate: new Date().toISOString().split('T')[0],
-      amount: item.price
-    };
-    setCompletedTransaction(transaction);
-    setShowTransactionComplete(true);
+  const handleTransactionComplete = async (item: Item) => {
+    try {
+      // Create transaction in backend
+      const sellerId = item.seller.id || (item.seller as any)._id;
+      const itemId = item.id || (item as any)._id;
+
+      console.log('=== Transaction Debug ===');
+      console.log('Item:', item);
+      console.log('Seller from item:', item.seller);
+      console.log('Seller ID:', sellerId);
+      console.log('Item ID:', itemId);
+      console.log('Current User ID:', currentUser?.id || (currentUser as any)?._id);
+      console.log('========================');
+
+      if (!sellerId || sellerId === 'undefined') {
+        toast('Error: Seller ID is missing', {
+          description: 'Cannot complete transaction without valid seller information'
+        });
+        return;
+      }
+
+      const transactionData = await transactionsAPI.create({
+        itemId,
+        sellerId,
+        amount: item.price
+      });
+
+      // Complete the transaction immediately (for demo purposes)
+      const completedData = await transactionsAPI.complete(transactionData.transaction._id);
+
+      // Update the item's availability in local state
+      setItems(prev => {
+        const next = prev.map(i => {
+          const currentItemId = i.id || (i as any)._id;
+          return currentItemId === itemId ? { ...i, isAvailable: false } : i;
+        });
+        try { sessionStorage.setItem('nm_items', JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
+
+      // Also update selectedItem if it's the same item
+      if (selectedItem && ((selectedItem.id || (selectedItem as any)._id) === itemId)) {
+        setSelectedItem({ ...selectedItem, isAvailable: false });
+      }
+
+      const transaction = {
+        id: completedData.transaction._id,
+        item: { ...item, isAvailable: false },
+        seller: item.seller,
+        completedDate: new Date().toISOString().split('T')[0],
+        amount: item.price
+      };
+
+      // Skip the intermediate modal and go directly to review submission
+      setSelectedTransaction(transaction);
+      setCurrentPage("review");
+
+      toast("Transaction completed!", {
+        description: "Please submit a review for this transaction"
+      });
+    } catch (error: any) {
+      console.error('Failed to complete transaction:', error);
+      toast(error.message || "Failed to complete transaction", {
+        description: "Please try again later"
+      });
+    }
   };
 
   const handleReviewFromTransaction = (transaction: any) => {
@@ -291,7 +424,11 @@ export default function App() {
 
   // Get user's own items for manage listings
   const getUserItems = () => {
-    return items.filter(item => item.seller.id === currentUser?.id);
+    const userId = currentUser?.id || (currentUser as any)?._id;
+    return items.filter(item => {
+      const sellerId = item.seller.id || (item.seller as any)._id;
+      return sellerId === userId;
+    });
   };
 
   // Show authentication screens if not logged in
@@ -436,8 +573,10 @@ export default function App() {
           />
           <MessagingInterface
             isOpen={showMessages}
-            onClose={() => setShowMessages(false)}
+            onClose={handleCloseMessages}
             currentUserId={currentUser.id}
+            selectedSeller={selectedSellerForMessage}
+            selectedItem={selectedItemForMessage}
           />
         </div>
     );
@@ -467,8 +606,10 @@ export default function App() {
           />
           <MessagingInterface
             isOpen={showMessages}
-            onClose={() => setShowMessages(false)}
+            onClose={handleCloseMessages}
             currentUserId={currentUser.id}
+            selectedSeller={selectedSellerForMessage}
+            selectedItem={selectedItemForMessage}
           />
         </div>
     );
@@ -492,8 +633,10 @@ export default function App() {
         <SellerProfile sellerId={id} onBack={handleBackToMarketplace} onContactSeller={handleContactSeller} />
         <MessagingInterface
           isOpen={showMessages}
-          onClose={() => setShowMessages(false)}
+          onClose={handleCloseMessages}
           currentUserId={currentUser.id}
+          selectedSeller={selectedSellerForMessage}
+          selectedItem={selectedItemForMessage}
         />
       </div>
     );
@@ -522,8 +665,10 @@ export default function App() {
           />
           <MessagingInterface
             isOpen={showMessages}
-            onClose={() => setShowMessages(false)}
+            onClose={handleCloseMessages}
             currentUserId={currentUser.id}
+            selectedSeller={selectedSellerForMessage}
+            selectedItem={selectedItemForMessage}
           />
         </div>
     );
@@ -552,8 +697,10 @@ export default function App() {
         </div>
         <MessagingInterface
           isOpen={showMessages}
-          onClose={() => setShowMessages(false)}
+          onClose={handleCloseMessages}
           currentUserId={currentUser.id}
+          selectedSeller={selectedSellerForMessage}
+          selectedItem={selectedItemForMessage}
         />
       </div>
     );
@@ -599,12 +746,20 @@ export default function App() {
             onBack={() => setSelectedItem(null)}
             onContactSeller={handleContactSeller}
             onViewProfile={handleViewProfile}
-            onTransactionComplete={handleTransactionComplete}
+            onTransactionComplete={
+              // Only allow transaction completion if user is not the seller
+              currentUser &&
+              (selectedItem.seller.id || (selectedItem.seller as any)._id) !== (currentUser.id || (currentUser as any)._id)
+                ? handleTransactionComplete
+                : undefined
+            }
           />
           <MessagingInterface
             isOpen={showMessages}
-            onClose={() => setShowMessages(false)}
+            onClose={handleCloseMessages}
             currentUserId={currentUser.id}
+            selectedSeller={selectedSellerForMessage}
+            selectedItem={selectedItemForMessage}
           />
         </div>
     );
@@ -628,9 +783,11 @@ export default function App() {
           selectedDepartment={selectedDepartment}
           selectedSemester={selectedSemester}
           selectedType={selectedType}
+          selectedAvailability={selectedAvailability}
           onDepartmentChange={setSelectedDepartment}
           onSemesterChange={setSelectedSemester}
           onTypeChange={setSelectedType}
+          onAvailabilityChange={setSelectedAvailability}
           onClearFilters={clearFilters}
         />
 
@@ -754,8 +911,10 @@ export default function App() {
 
       <MessagingInterface
         isOpen={showMessages}
-        onClose={() => setShowMessages(false)}
+        onClose={handleCloseMessages}
         currentUserId={currentUser.id}
+        selectedSeller={selectedSellerForMessage}
+        selectedItem={selectedItemForMessage}
       />
 
       {/* Transaction Complete Modal */}

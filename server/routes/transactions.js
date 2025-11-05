@@ -11,18 +11,33 @@ router.post('/', auth, async (req, res) => {
   try {
     const { itemId, sellerId, amount } = req.body;
 
+    console.log('=== Transaction Creation ===');
+    console.log('Request body:', req.body);
+    console.log('Authenticated user (buyer):', req.userId);
+    console.log('Seller ID from request:', sellerId);
+    console.log('Item ID:', itemId);
+
     if (!itemId || !sellerId) {
       return res.status(400).json({ error: 'Item ID and seller ID are required' });
     }
 
     // Check if item exists and is available
-    const item = await Item.findById(itemId);
+    const item = await Item.findById(itemId).populate('seller');
     if (!item) {
       return res.status(404).json({ error: 'Item not found' });
     }
 
+    console.log('Item found - Actual seller from DB:', item.seller);
+    console.log('Seller ID from request matches item seller?', item.seller._id.toString() === sellerId);
+
     if (!item.isAvailable) {
       return res.status(400).json({ error: 'Item is no longer available' });
+    }
+
+    // Verify that buyer is not the seller
+    if (req.userId.toString() === sellerId.toString()) {
+      console.log('ERROR: User trying to buy their own item!');
+      return res.status(400).json({ error: 'You cannot buy your own item' });
     }
 
     const transaction = new Transaction({
@@ -32,6 +47,9 @@ router.post('/', auth, async (req, res) => {
       amount: amount || item.price || 0,
       status: 'pending'
     });
+
+    console.log('Transaction object:', { item: itemId, seller: sellerId, buyer: req.userId });
+    console.log('==========================');
 
     await transaction.save();
     await transaction.populate('item');

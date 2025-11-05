@@ -7,16 +7,20 @@ const { auth } = require('../middleware/auth');
 // Get user profile by ID
 router.get('/:id', async (req, res) => {
   try {
+    console.log(`Fetching user profile for ID: ${req.params.id}`);
     const user = await User.findById(req.params.id).select('-password');
-    
+
     if (!user) {
+      console.log(`User not found: ${req.params.id}`);
       return res.status(404).json({ error: 'User not found' });
     }
+
+    console.log(`User found - Name: ${user.name}, Rating: ${user.rating}, ReviewCount: ${user.reviewCount}`);
 
     // Get user's items count
     const itemsCount = await Item.countDocuments({ seller: user._id });
 
-    res.json({ 
+    res.json({
       user: {
         ...user.toJSON(),
         itemsCount
