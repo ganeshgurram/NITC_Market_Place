@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { formatDate } from "./ui/utils";
 // Extend Item type to include missing properties for this component
 import { Item as BaseItem } from "./ItemCard";
 export interface Item extends BaseItem {
@@ -295,7 +296,7 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                       </TableCell>
                       <TableCell>{getStatusBadge(item)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {item.createdAt}
+                        {formatDate(item.createdAt)}
                       </TableCell>
                       <TableCell>{item.views || 0}</TableCell>
                       <TableCell>

@@ -3,6 +3,7 @@ import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { formatDate } from "./ui/utils";
 
 export interface Item {
   id: string;
@@ -115,7 +116,7 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="w-3 h-3" />
-                <span>{item.createdAt}</span>
+                <span>{formatDate(item.createdAt)}</span>
               </div>
             </div>
 

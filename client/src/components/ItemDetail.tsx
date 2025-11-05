@@ -4,6 +4,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { formatDate } from "./ui/utils";
 import { Item } from "./ItemCard";
 
 interface ItemDetailProps {
@@ -125,7 +126,7 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
             </div>
             <div className="flex items-center space-x-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>Posted: {item.createdAt}</span>
+              <span>Posted: {formatDate(item.createdAt)}</span>
             </div>
           </div>
 

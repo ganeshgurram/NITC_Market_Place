@@ -93,9 +93,7 @@ export default function SellerProfile({ sellerId, onBack, onContactSeller }: Sel
                 <p className="text-sm">Phone: {seller.phone}</p>
                 {seller.hostel && <p className="text-sm">Hostel: {seller.hostel}</p>}
                 <div className="mt-3 flex items-center space-x-2">
-                  <Button onClick={() => { /* placeholder for messaging */ }}>
-                    <MessageCircle className="w-4 h-4 mr-2" /> Message
-                  </Button>
+                  
                 </div>
               </div>
             </div>
