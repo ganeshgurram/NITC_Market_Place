@@ -27,7 +27,9 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || data.message || 'An error occurred');
+    const error: any = new Error(data.error || data.message || 'An error occurred');
+    error.response = { data, status: response.status };
+    throw error;
   }
 
   return data;

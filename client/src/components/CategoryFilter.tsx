@@ -6,9 +6,11 @@ interface CategoryFilterProps {
   selectedDepartment: string;
   selectedSemester: string;
   selectedType: string;
+  selectedAvailability: string;
   onDepartmentChange: (department: string) => void;
   onSemesterChange: (semester: string) => void;
   onTypeChange: (type: string) => void;
+  onAvailabilityChange: (availability: string) => void;
   onClearFilters: () => void;
 }
 
@@ -45,18 +47,26 @@ const itemTypes = [
   "Free/Donation"
 ];
 
+const availabilityOptions = [
+  "Available Only",
+  "All Items"
+];
+
 export function CategoryFilter({
   selectedDepartment,
   selectedSemester,
   selectedType,
+  selectedAvailability,
   onDepartmentChange,
   onSemesterChange,
   onTypeChange,
+  onAvailabilityChange,
   onClearFilters
 }: CategoryFilterProps) {
-  const hasFilters = selectedDepartment !== "All Departments" || 
-                    selectedSemester !== "All Semesters" || 
-                    selectedType !== "All Types";
+  const hasFilters = selectedDepartment !== "All Departments" ||
+                    selectedSemester !== "All Semesters" ||
+                    selectedType !== "All Types" ||
+                    selectedAvailability !== "Available Only";
 
   return (
     <div className="bg-white border-b p-4">
@@ -104,6 +114,19 @@ export function CategoryFilter({
               </SelectContent>
             </Select>
 
+            <Select value={selectedAvailability} onValueChange={onAvailabilityChange}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Availability" />
+              </SelectTrigger>
+              <SelectContent>
+                {availabilityOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {hasFilters && (
               <Button variant="ghost" onClick={onClearFilters}>
                 Clear Filters
@@ -122,6 +145,9 @@ export function CategoryFilter({
             )}
             {selectedType !== "All Types" && (
               <Badge variant="secondary">{selectedType}</Badge>
+            )}
+            {selectedAvailability !== "Available Only" && (
+              <Badge variant="secondary">{selectedAvailability}</Badge>
             )}
           </div>
         )}

@@ -57,25 +57,36 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
         {/* Image Gallery */}
         <div className="space-y-4">
           <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 relative">
-            <ImageWithFallback
-              src={item.images[0]}
-              alt={item.title}
-              className="w-full h-full object-cover"
-            />
+            {item.images && item.images.length > 0 && item.images[0] ? (
+              <ImageWithFallback
+                src={item.images[0]}
+                alt={item.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                <div className="text-center text-gray-400">
+                  <svg className="w-16 h-16 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm">No image available</p>
+                </div>
+              </div>
+            )}
             <div className="absolute top-4 left-4">
               <Badge className={getTypeColor(item.type)}>
-                {item.type === "sale" ? "For Sale" : 
+                {item.type === "sale" ? "For Sale" :
                  item.type === "rent" ? "For Rent" : "Free"}
               </Badge>
             </div>
             {!item.isAvailable && (
-              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                <Badge variant="destructive" className="text-lg">Not Available</Badge>
+              <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                <Badge variant="destructive" className="text-2xl px-6 py-3 font-bold">SOLD</Badge>
               </div>
             )}
           </div>
-          
-          {item.images.length > 1 && (
+
+          {item.images && item.images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {item.images.slice(1, 5).map((image, index) => (
                 <div key={index} className="aspect-square rounded-md overflow-hidden bg-gray-100">
@@ -166,19 +177,26 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
 
           {/* Contact Button */}
           <div className="space-y-3">
-            <Button 
+            {!item.isAvailable && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+                <p className="text-red-700 font-semibold text-lg">🔒 Item Sold</p>
+                <p className="text-red-600 text-sm mt-1">This item is no longer available</p>
+              </div>
+            )}
+
+            <Button
               onClick={() => onContactSeller(item)}
               className="w-full"
               size="lg"
               disabled={!item.isAvailable}
             >
               <MessageCircle className="w-5 h-5 mr-2" />
-              Contact Seller
+              {item.isAvailable ? "Contact Seller" : "Item Not Available"}
             </Button>
-            
-            {/* Demo Transaction Complete Button */}
+
+            {/* Demo Transaction Complete Button - Only show when available */}
             {onTransactionComplete && item.isAvailable && (
-              <Button 
+              <Button
                 onClick={() => onTransactionComplete(item)}
                 variant="outline"
                 className="w-full"
@@ -188,10 +206,18 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
                 Complete Transaction (Demo)
               </Button>
             )}
-            
-            <p className="text-xs text-center text-muted-foreground">
-              All communication happens through our secure messaging system
-            </p>
+
+            {!item.isAvailable && (
+              <p className="text-xs text-center text-muted-foreground">
+                This transaction has been completed
+              </p>
+            )}
+
+            {item.isAvailable && (
+              <p className="text-xs text-center text-muted-foreground">
+                All communication happens through our secure messaging system
+              </p>
+            )}
           </div>
         </div>
       </div>
