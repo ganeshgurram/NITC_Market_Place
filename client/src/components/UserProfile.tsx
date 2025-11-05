@@ -16,13 +16,13 @@ interface UserProfileProps {
     name: string;
     email: string;
     department: string;
-    year: string;
+    semester?: string; // mapped from backend 'semester'
     rollNumber?: string;
     rating: number;
     reviewCount: number;
     avatar?: string;
     bio?: string;
-    joinedDate?: string;
+    createdAt?: string; // use createdAt for Joined date
     location?: string;
   };
   onBack: () => void;
@@ -33,56 +33,12 @@ interface UserProfileProps {
   onViewRatings?: () => void;
 }
 
-// Mock user items
-const mockUserItems: Item[] = [
-  {
-    id: "user1",
-    title: "Data Structures and Algorithms - Cormen",
-    description: "Well-maintained textbook with bookmarks and notes",
-    price: 950,
-    type: "sale",
-    category: "textbook",
-    department: "Computer Science & Engineering",
-    semester: "4",
-    courseCode: "CS2001",
-    condition: "good",
-    images: ["https://images.unsplash.com/photo-1595315342809-fa10945ed07c?w=400&h=400&fit=crop"],
-    seller: {
-      id: "1",
-      name: "Alex Student",
-      rating: 4.6,
-      reviewCount: 23
-    },
-    location: "CS Block",
-    postedAt: "3 days ago",
-    isAvailable: true
-  },
-  {
-    id: "user2",
-    title: "Scientific Calculator - Casio fx-991ES",
-    description: "Excellent condition calculator, rarely used",
-    price: 800,
-    type: "sale",
-    category: "stationery",
-    department: "All Departments",
-    condition: "like-new",
-    images: ["https://images.unsplash.com/photo-1693011142814-aa33d7d1535c?w=400&h=400&fit=crop"],
-    seller: {
-      id: "1",
-      name: "Alex Student", 
-      rating: 4.6,
-      reviewCount: 23
-    },
-    location: "Hostel H1",
-    postedAt: "1 week ago",
-    isAvailable: true
-  }
-];
+
 
 // reviews will be loaded from API
 
-export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userItems = mockUserItems, onManageListings, onViewRatings }: UserProfileProps) {
-  const [items, setItems] = useState<Item[]>(userItems || []);
+export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, onManageListings, onViewRatings }: UserProfileProps) {
+  const [items, setItems] = useState<Item[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
 
   const handleItemClick = (item: Item) => {
@@ -211,7 +167,9 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
                   
                   <div className="flex items-center space-x-1 text-muted-foreground">
                     <Calendar className="w-4 h-4" />
-                    <span>Joined {user.joinedDate || "6 months ago"}</span>
+                    <span>
+                      Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "6 months ago"}
+                    </span>
                   </div>
                 </div>
 
@@ -228,14 +186,14 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, userIt
                   <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
                     <Award className="w-5 h-5 text-green-600" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Academic Year</p>
-                      <p className="font-medium">{user.year}</p>
+                      <p className="text-sm text-muted-foreground">Semester</p>
+                      <p className="font-medium">{user.semester || 'N/A'}</p>
                     </div>
                   </div>
                   
                   {user.rollNumber && (
                     <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-purple-600" />
+                      
                       <div>
                         <p className="text-sm text-muted-foreground">Roll Number</p>
                         <p className="font-medium">{user.rollNumber}</p>
