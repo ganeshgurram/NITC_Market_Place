@@ -238,12 +238,27 @@ export const adminAPI = {
     return await apiRequest('/admin/stats');
   },
 
-  getAllUsers: async () => {
-    return await apiRequest('/admin/users');
+  getAllUsers: async (search?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    const queryString = params.toString();
+    return await apiRequest(`/admin/users${queryString ? `?${queryString}` : ''}`);
   },
 
-  getAllItems: async () => {
-    return await apiRequest('/admin/items');
+  getAllItems: async (search?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    const queryString = params.toString();
+    return await apiRequest(`/admin/items${queryString ? `?${queryString}` : ''}`);
+  },
+
+  updateItemAvailability: async (id: string, isAvailable: boolean) => {
+    return await apiRequest(`/admin/items/${id}/availability`, {
+      method: 'PUT',
+      body: JSON.stringify({ isAvailable }),
+    });
   },
 
   deleteItem: async (id: string) => {
@@ -256,10 +271,39 @@ export const adminAPI = {
     return await apiRequest('/admin/transactions');
   },
 
+  suspendUser: async (id: string, suspended: boolean) => {
+    return await apiRequest(`/admin/users/${id}/suspend`, {
+      method: 'PUT',
+      body: JSON.stringify({ suspended }),
+    });
+  },
+
+  deleteUser: async (id: string) => {
+    return await apiRequest(`/admin/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   verifyUser: async (id: string, isVerified: boolean) => {
     return await apiRequest(`/admin/users/${id}/verify`, {
       method: 'PUT',
       body: JSON.stringify({ isVerified }),
     });
+  },
+
+  getAllReports: async (status?: string) => {
+    const queryString = status ? `?status=${status}` : '';
+    return await apiRequest(`/admin/reports${queryString}`);
+  },
+
+  resolveReport: async (id: string, action: 'approve' | 'reject') => {
+    return await apiRequest(`/admin/reports/${id}/resolve`, {
+      method: 'PUT',
+      body: JSON.stringify({ action }),
+    });
+  },
+
+  getAnalytics: async () => {
+    return await apiRequest('/admin/analytics');
   },
 };

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Users, Package, MessageSquare, TrendingUp, Settings, BarChart3, Shield, AlertTriangle, CheckCircle, XCircle, Search, Filter, MoreHorizontal } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Users, Package, MessageSquare, TrendingUp, Settings, Shield, AlertTriangle, CheckCircle, XCircle, Search, Filter, MoreHorizontal, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { adminAPI } from "../utils/api";
 
 interface AdminDashboardProps {
   currentUser: {
@@ -19,50 +20,268 @@ interface AdminDashboardProps {
   };
 }
 
-// Mock data
-const dashboardStats = {
-  totalUsers: 1247,
-  activeListings: 456,
-  totalTransactions: 892,
-  pendingReports: 8,
-  monthlyGrowth: 12.5
-};
+interface DashboardStats {
+  totalUsers: number;
+  activeListings: number;
+  totalTransactions: number;
+  pendingReports: number;
+  monthlyGrowth: {
+    users: number;
+    listings: number;
+    transactions: number;
+  };
+}
 
-const recentUsers = [
-  { id: "1", name: "Rahul Sharma", email: "rahul.sharma@nitc.ac.in", department: "CSE", joinedDate: "2024-01-15", status: "active" },
-  { id: "2", name: "Priya Patel", email: "priya.patel@nitc.ac.in", department: "ECE", joinedDate: "2024-01-14", status: "active" },
-  { id: "3", name: "Karthik Kumar", email: "karthik.kumar@nitc.ac.in", department: "ME", joinedDate: "2024-01-13", status: "pending" },
-  { id: "4", name: "Sneha Nair", email: "sneha.nair@nitc.ac.in", department: "CE", joinedDate: "2024-01-12", status: "active" },
-];
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  department: string;
+  createdAt: string;
+  isVerified: boolean;
+  rollNumber?: string;
+}
 
-const recentListings = [
-  { id: "1", title: "Advanced Engineering Mathematics", seller: "Alex Student", department: "CSE", price: 800, status: "active", reportCount: 0 },
-  { id: "2", title: "Lab Equipment - Oscilloscope", seller: "Priya Sharma", department: "ECE", price: null, status: "active", reportCount: 0 },
-  { id: "3", title: "Stationery Bundle", seller: "Rahul Kumar", department: "All", price: null, status: "reported", reportCount: 2 },
-  { id: "4", title: "Computer Graphics Textbook", seller: "Karthik Nair", department: "CSE", price: 450, status: "sold", reportCount: 0 },
-];
+interface Item {
+  _id: string;
+  title: string;
+  seller: {
+    name: string;
+    email: string;
+    rollNumber?: string;
+  };
+  department: string;
+  price?: number;
+  isAvailable: boolean;
+  createdAt: string;
+}
 
-const reportedItems = [
-  { id: "1", title: "Fake Textbook Listing", reporter: "Student A", reason: "Misleading description", date: "2024-01-15", status: "pending" },
-  { id: "2", title: "Overpriced Calculator", reporter: "Student B", reason: "Price manipulation", date: "2024-01-14", status: "pending" },
-  { id: "3", title: "Inappropriate Content", reporter: "Student C", reason: "Inappropriate images", date: "2024-01-13", status: "resolved" },
-];
+interface Report {
+  _id: string;
+  item: {
+    _id: string;
+    title: string;
+    description?: string;
+  };
+  reporter: {
+    _id: string;
+    name: string;
+    email: string;
+    rollNumber?: string;
+  };
+  reason: string;
+  status: string;
+  createdAt: string;
+}
 
 export function AdminDashboard({ currentUser }: AdminDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [recentUsers, setRecentUsers] = useState<User[]>([]);
+  const [recentListings, setRecentListings] = useState<Item[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [allListings, setAllListings] = useState<Item[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Array<{ type: string; text: string; date: Date }>>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleUserAction = (userId: string, action: string) => {
-    console.log(`Admin action: ${action} for user ${userId}`);
+  // Fetch dashboard stats
+  const fetchDashboardStats = async () => {
+    try {
+      const data = await adminAPI.getStats();
+      setDashboardStats(data.stats);
+      setRecentUsers(data.recentUsers || []);
+      setRecentListings(data.recentItems || []);
+      
+      // Build recent activity from recent data
+      const activities: any[] = [];
+      if (data.recentUsers) {
+        data.recentUsers.slice(0, 2).forEach((user: User) => {
+          activities.push({
+            type: 'user',
+            text: `New user registered: ${user.name}`,
+            date: new Date(user.createdAt),
+          });
+        });
+      }
+      if (data.recentItems) {
+        data.recentItems.slice(0, 2).forEach((item: Item) => {
+          activities.push({
+            type: 'listing',
+            text: `New listing: "${item.title}"`,
+            date: new Date(item.createdAt),
+          });
+        });
+      }
+      if (data.recentTransactions) {
+        data.recentTransactions.slice(0, 2).forEach((trans: any) => {
+          activities.push({
+            type: 'transaction',
+            text: `Transaction completed: ${trans.item?.title || 'Item'}`,
+            date: new Date(trans.createdAt),
+          });
+        });
+      }
+      // Sort by date and limit
+      activities.sort((a, b) => b.date.getTime() - a.date.getTime());
+      setRecentActivity(activities.slice(0, 4));
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch dashboard stats');
+      console.error('Error fetching dashboard stats:', err);
+    }
   };
 
-  const handleListingAction = (listingId: string, action: string) => {
-    console.log(`Admin action: ${action} for listing ${listingId}`);
+  // Fetch all users
+  const fetchUsers = async () => {
+    try {
+      const status = statusFilter !== 'all' ? statusFilter : undefined;
+      const data = await adminAPI.getAllUsers(searchQuery || undefined, status);
+      setAllUsers(data.users || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch users');
+      console.error('Error fetching users:', err);
+    }
   };
 
-  const handleReportAction = (reportId: string, action: string) => {
-    console.log(`Admin action: ${action} for report ${reportId}`);
+  // Fetch all listings
+  const fetchListings = async () => {
+    try {
+      const data = await adminAPI.getAllItems();
+      setAllListings(data.items || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch listings');
+      console.error('Error fetching listings:', err);
+    }
   };
+
+  // Fetch reports
+  const fetchReports = async () => {
+    try {
+      const data = await adminAPI.getAllReports();
+      setReports(data.reports || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch reports');
+      console.error('Error fetching reports:', err);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        await Promise.all([
+          fetchDashboardStats(),
+          fetchUsers(),
+          fetchListings(),
+          fetchReports(),
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  // Refetch users when search or filter changes
+  useEffect(() => {
+    if (!loading) {
+      fetchUsers();
+    }
+  }, [searchQuery, statusFilter]);
+
+  const handleUserAction = async (userId: string, action: string) => {
+    try {
+      if (action === 'suspend') {
+        await adminAPI.suspendUser(userId, true);
+        await fetchUsers();
+        await fetchDashboardStats();
+      } else if (action === 'delete') {
+        if (confirm('Are you sure you want to delete this user?')) {
+          await adminAPI.deleteUser(userId);
+          await fetchUsers();
+          await fetchDashboardStats();
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || `Failed to ${action} user`);
+      console.error(`Error ${action} user:`, err);
+    }
+  };
+
+  const handleListingAction = async (listingId: string, action: string) => {
+    try {
+      if (action === 'hide') {
+        await adminAPI.updateItemAvailability(listingId, false);
+        await fetchListings();
+        await fetchDashboardStats();
+      } else if (action === 'delete') {
+        if (confirm('Are you sure you want to delete this listing?')) {
+          await adminAPI.deleteItem(listingId);
+          await fetchListings();
+          await fetchDashboardStats();
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || `Failed to ${action} listing`);
+      console.error(`Error ${action} listing:`, err);
+    }
+  };
+
+  const handleReportAction = async (reportId: string, action: string) => {
+    try {
+      await adminAPI.resolveReport(reportId, action === 'approve' ? 'approve' : 'reject');
+      await fetchReports();
+      await fetchDashboardStats();
+    } catch (err: any) {
+      setError(err.message || `Failed to ${action} report`);
+      console.error(`Error ${action} report:`, err);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    return formatDate(dateString);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboardStats) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Alert className="max-w-md">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {error || 'Failed to load dashboard data'}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,6 +297,14 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
             <span>Settings</span>
           </Button>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Alert for pending reports */}
         {dashboardStats.pendingReports > 0 && (
@@ -99,7 +326,7 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
             <CardContent>
               <div className="text-2xl font-bold">{dashboardStats.totalUsers.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                +12% from last month
+                {dashboardStats.monthlyGrowth.users >= 0 ? '+' : ''}{dashboardStats.monthlyGrowth.users.toFixed(1)}% from last month
               </p>
             </CardContent>
           </Card>
@@ -112,7 +339,7 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
             <CardContent>
               <div className="text-2xl font-bold">{dashboardStats.activeListings}</div>
               <p className="text-xs text-muted-foreground">
-                +8% from last month
+                {dashboardStats.monthlyGrowth.listings >= 0 ? '+' : ''}{dashboardStats.monthlyGrowth.listings.toFixed(1)}% from last month
               </p>
             </CardContent>
           </Card>
@@ -125,7 +352,7 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
             <CardContent>
               <div className="text-2xl font-bold">{dashboardStats.totalTransactions}</div>
               <p className="text-xs text-muted-foreground">
-                +15% from last month
+                {dashboardStats.monthlyGrowth.transactions >= 0 ? '+' : ''}{dashboardStats.monthlyGrowth.transactions.toFixed(1)}% from last month
               </p>
             </CardContent>
           </Card>
@@ -146,12 +373,11 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="listings">Listings</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -163,22 +389,26 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentUsers.slice(0, 4).map((user) => (
-                      <div key={user.id} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback>{user.name[0]}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-sm">{user.name}</p>
-                            <p className="text-xs text-muted-foreground">{user.department}</p>
+                    {recentUsers.length > 0 ? (
+                      recentUsers.slice(0, 4).map((user) => (
+                        <div key={user._id} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback>{user.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{user.name}</p>
+                              <p className="text-xs text-muted-foreground">{user.department}</p>
+                            </div>
                           </div>
+                          <Badge variant={user.isVerified ? "default" : "secondary"}>
+                            {user.isVerified ? "verified" : "pending"}
+                          </Badge>
                         </div>
-                        <Badge variant={user.status === "active" ? "default" : "secondary"}>
-                          {user.status}
-                        </Badge>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No recent users</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -190,34 +420,27 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">New user registered: Priya Patel</p>
-                        <p className="text-xs text-muted-foreground">2 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">New listing: "Advanced Mathematics Textbook"</p>
-                        <p className="text-xs text-muted-foreground">4 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">Report submitted for item #1234</p>
-                        <p className="text-xs text-muted-foreground">6 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">Transaction completed: Lab Equipment</p>
-                        <p className="text-xs text-muted-foreground">8 hours ago</p>
-                      </div>
-                    </div>
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map((activity, index) => {
+                        const colorMap: { [key: string]: string } = {
+                          user: 'bg-green-500',
+                          listing: 'bg-blue-500',
+                          transaction: 'bg-purple-500',
+                          report: 'bg-red-500',
+                        };
+                        return (
+                          <div key={index} className="flex items-center space-x-3">
+                            <div className={`w-2 h-2 ${colorMap[activity.type] || 'bg-gray-500'} rounded-full`}></div>
+                            <div className="flex-1">
+                              <p className="text-sm">{activity.text}</p>
+                              <p className="text-xs text-muted-foreground">{getTimeAgo(activity.date.toISOString())}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No recent activity</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -265,48 +488,53 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback>{user.name[0]}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{user.name}</p>
-                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                    {allUsers.length > 0 ? (
+                      allUsers.map((user) => (
+                        <TableRow key={user._id}>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback>{user.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{user.name}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{user.department}</TableCell>
-                        <TableCell>{user.joinedDate}</TableCell>
-                        <TableCell>
-                          <Badge variant={user.status === "active" ? "default" : "secondary"}>
-                            {user.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem onClick={() => handleUserAction(user.id, "view")}>
-                                View Profile
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleUserAction(user.id, "suspend")}>
-                                Suspend User
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleUserAction(user.id, "delete")}>
-                                Delete User
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          </TableCell>
+                          <TableCell>{user.department}</TableCell>
+                          <TableCell>{formatDate(user.createdAt)}</TableCell>
+                          <TableCell>
+                            <Badge variant={user.isVerified ? "default" : "secondary"}>
+                              {user.isVerified ? "verified" : "pending"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => handleUserAction(user._id, "suspend")}>
+                                  {user.isVerified ? "Suspend User" : "Unsuspend User"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUserAction(user._id, "delete")}>
+                                  Delete User
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No users found
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -331,44 +559,48 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentListings.map((listing) => (
-                      <TableRow key={listing.id}>
-                        <TableCell className="font-medium">{listing.title}</TableCell>
-                        <TableCell>{listing.seller}</TableCell>
-                        <TableCell>{listing.department}</TableCell>
-                        <TableCell>{listing.price ? `₹${listing.price}` : "Free"}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={
-                              listing.status === "active" ? "default" :
-                              listing.status === "reported" ? "destructive" : "secondary"
-                            }
-                          >
-                            {listing.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem onClick={() => handleListingAction(listing.id, "view")}>
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleListingAction(listing.id, "hide")}>
-                                Hide Listing
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleListingAction(listing.id, "delete")}>
-                                Delete Listing
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {allListings.length > 0 ? (
+                      allListings.map((listing) => (
+                        <TableRow key={listing._id}>
+                          <TableCell className="font-medium">{listing.title}</TableCell>
+                          <TableCell>{listing.seller?.name || 'Unknown'}</TableCell>
+                          <TableCell>{listing.department}</TableCell>
+                          <TableCell>{listing.price ? `₹${listing.price}` : "Free"}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={
+                                listing.isAvailable ? "default" : "secondary"
+                              }
+                            >
+                              {listing.isAvailable ? "active" : "sold"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => handleListingAction(listing._id, "hide")}>
+                                  {listing.isAvailable ? "Hide Listing" : "Show Listing"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleListingAction(listing._id, "delete")}>
+                                  Delete Listing
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No listings found
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -393,66 +625,51 @@ export function AdminDashboard({ currentUser }: AdminDashboardProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportedItems.map((report) => (
-                      <TableRow key={report.id}>
-                        <TableCell className="font-medium">{report.title}</TableCell>
-                        <TableCell>{report.reporter}</TableCell>
-                        <TableCell>{report.reason}</TableCell>
-                        <TableCell>{report.date}</TableCell>
-                        <TableCell>
-                          <Badge variant={report.status === "pending" ? "destructive" : "default"}>
-                            {report.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleReportAction(report.id, "approve")}
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleReportAction(report.id, "reject")}
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </Button>
-                          </div>
+                    {reports.length > 0 ? (
+                      reports.map((report) => (
+                        <TableRow key={report._id}>
+                          <TableCell className="font-medium">{report.item?.title || 'Unknown Item'}</TableCell>
+                          <TableCell>{report.reporter?.name || 'Unknown'}</TableCell>
+                          <TableCell>{report.reason}</TableCell>
+                          <TableCell>{formatDate(report.createdAt)}</TableCell>
+                          <TableCell>
+                            <Badge variant={report.status === "pending" ? "destructive" : "default"}>
+                              {report.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {report.status === "pending" ? (
+                              <div className="flex items-center space-x-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleReportAction(report._id, "approve")}
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleReportAction(report._id, "reject")}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Resolved</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No reports found
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analytics Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-medium">User Growth</h4>
-                    <div className="h-32 bg-muted rounded-lg flex items-center justify-center">
-                      <BarChart3 className="w-8 h-8 text-muted-foreground" />
-                      <span className="ml-2 text-muted-foreground">Chart Placeholder</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Transaction Volume</h4>
-                    <div className="h-32 bg-muted rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-8 h-8 text-muted-foreground" />
-                      <span className="ml-2 text-muted-foreground">Chart Placeholder</span>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
