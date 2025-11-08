@@ -22,7 +22,7 @@ import { Card, CardContent } from "./components/ui/card";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
 import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import { itemsAPI, reviewsAPI, transactionsAPI } from "./utils/api";
+import { itemsAPI, reviewsAPI, transactionsAPI, authAPI } from "./utils/api";
 
 // No mock items: load items from sessionStorage or start with empty list
 
@@ -163,6 +163,7 @@ export default function App() {
   };
 
   const handleSignOut = () => {
+    authAPI.signout();
     setCurrentUser(null);
     setCurrentPage("marketplace");
     setSelectedItem(null);
@@ -545,7 +546,7 @@ export default function App() {
 
   // Show admin dashboard for admin users
   if (currentUser.role === "admin" && currentPage === "admin") {
-    return <AdminDashboard currentUser={currentUser} />;
+    return <AdminDashboard currentUser={currentUser} onSignOut={handleSignOut} />;
   }
 
   // Show user profile page
