@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { adminAPI, usersAPI } from "../utils/api";
 import React from "react";
+
 interface AdminDashboardProps {
   currentUser: {
     name: string;

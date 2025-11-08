@@ -84,24 +84,36 @@ export default function App() {
       return false;
     }
     
+    // Search filter
     const matchesSearch = searchQuery === "" ||
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase());
+      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
+    // Department filter - case-insensitive comparison
     const matchesDepartment = selectedDepartment === "All Departments" ||
-      item.department === selectedDepartment;
+      (item.department && item.department.toLowerCase() === selectedDepartment.toLowerCase());
 
-    const matchesSemester = selectedSemester === "All Semesters" ||
-      item.semester === selectedSemester.split(" ")[0];
+    // Semester filter - extract number from "1st Semester" format and compare
+    let matchesSemester = selectedSemester === "All Semesters";
+    if (!matchesSemester && item.semester) {
+      // Extract number from "1st Semester", "2nd Semester", etc.
+      const selectedSemesterNum = selectedSemester.match(/\d+/)?.[0];
+      // Item semester might be "1", "1st", "1st Semester", etc.
+      const itemSemesterNum = String(item.semester).match(/\d+/)?.[0];
+      matchesSemester = selectedSemesterNum === itemSemesterNum;
+    }
 
+    // Type filter
     const matchesType = selectedType === "All Types" ||
       (selectedType === "For Sale" && item.type === "sale") ||
       (selectedType === "For Rent" && item.type === "rent") ||
       (selectedType === "Free/Donation" && item.type === "free");
 
+    // Availability filter
     const matchesAvailability = selectedAvailability === "All Items" ||
-      (selectedAvailability === "Available Only" && item.isAvailable);
+      (selectedAvailability === "Available Only" && item.isAvailable === true);
 
+    // All filters must match (AND condition)
     return matchesSearch && matchesDepartment && matchesSemester && matchesType && matchesAvailability;
   });
 
