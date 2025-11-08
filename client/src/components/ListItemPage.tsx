@@ -101,7 +101,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
       const form = new FormData();
       form.append('image', file);
       // Upload to backend (use VITE_API_URL if set, otherwise default to localhost:5000)
-      const uploadEndpoint = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/upload`;
+      const uploadEndpoint = `${process.env.VITE_API_URL || 'http://localhost:5000/api'}/upload`;
       const res = await fetch(uploadEndpoint, {
         method: 'POST',
         body: form
@@ -113,7 +113,7 @@ export function ListItemPage({ onBack, onSubmit, currentUser }: ListItemPageProp
       }
 
       // Build a full URL for the uploaded file so the image loads correctly from any origin
-      const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/i, '');
+      const backendBase = (process.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/i, '');
       const fullUrl = data.url.startsWith('http') ? data.url : `${backendBase}${data.url}`;
 
       setFormData(prev => ({

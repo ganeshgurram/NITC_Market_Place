@@ -364,7 +364,7 @@ export default function App() {
   const handleTransactionComplete = async (item: Item) => {
     try {
       // Create transaction in backend
-      const sellerId = item.seller.id || (item.seller as any)._id;
+      const sellerId = item.seller?.id || (item.seller as any)._id;
       const itemId = item.id || (item as any)._id;
 
       console.log('=== Transaction Debug ===');
@@ -771,7 +771,7 @@ export default function App() {
             onTransactionComplete={
               // Only allow transaction completion if user is not the seller
               currentUser &&
-              (selectedItem.seller.id || (selectedItem.seller as any)._id) !== (currentUser.id || (currentUser as any)._id)
+              (selectedItem.seller?.id || (selectedItem.seller as any)._id) !== (currentUser.id || (currentUser as any)._id)
                 ? handleTransactionComplete
                 : undefined
             }
@@ -841,21 +841,13 @@ export default function App() {
                 <CardContent className="p-6 text-center">
                   <Users className="w-8 h-8 mx-auto mb-2 text-green-600" />
                   <div>
-                    <div className="text-2xl">1,200+</div>
-                    <p className="text-sm text-muted-foreground">Students</p>
+                    <div className="text-2xl">1200+</div>
+                    <p className="text-sm text-muted-foreground">Users</p>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <Star className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
-                  <div>
-                    <div className="text-2xl">4.8</div>
-                    <p className="text-sm text-muted-foreground">Avg Rating</p>
-                  </div>
-                </CardContent>
-              </Card>
+              
 
               <Card>
                 <CardContent className="p-6 text-center">

@@ -151,23 +151,23 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
             <CardContent>
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="text-lg">{item.seller.name[0]}</span>
+                  <span className="text-lg">{item.seller?.name[0]}</span>
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-medium">{item.seller.name}</h4>
+                  <h4 className="font-medium">{item.seller?.name}</h4>
                   <div className="flex items-center space-x-2">
                     <div className="flex items-center space-x-1">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span>{item.seller.rating}</span>
+                      <span>{item.seller?.rating}</span>
                       <span className="text-muted-foreground">
-                        ({item.seller.reviewCount} reviews)
+                        ({item.seller?.reviewCount} reviews)
                       </span>
                     </div>
                   </div>
                 </div>
                 <Button 
                   variant="outline" 
-                  onClick={() => onViewProfile(item.seller.id ?? (item.seller as any)._id)}
+                  onClick={() => onViewProfile(item.seller?.id ?? (item.seller as any)._id)}
                 >
                   View Profile
                 </Button>
