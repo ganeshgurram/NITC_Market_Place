@@ -33,10 +33,11 @@ export interface Item {
 interface ItemCardProps {
   item: Item;
   onClick: (item: Item) => void;
-  onContactSeller: (item: Item) => void;
+  onContactSeller?: (item: Item) => void;
+  isOwnItem?: boolean;
 }
 
-export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
+export function ItemCard({ item, onClick, onContactSeller, isOwnItem = false }: ItemCardProps) {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "sale": return "bg-blue-100 text-blue-800";
@@ -154,20 +155,32 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
       </div>
       
       <div className="px-4 pb-4">
-        <Button 
-          onClick={(e) => {
-            e.stopPropagation();
-            if (item.seller) {
-              onContactSeller(item);
-            }
-          }}
-          className="w-full" 
-          size="sm"
-          disabled={!item.isAvailable || !item.seller}
-        >
-          <MessageCircle className="w-4 h-4 mr-2" />
-          {item.seller ? 'Contact Seller' : 'Seller Removed'}
-        </Button>
+        {isOwnItem ? (
+          <Button 
+            className="w-full" 
+            size="sm"
+            disabled
+            variant="outline"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Your Item
+          </Button>
+        ) : (
+          <Button 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (item.seller && onContactSeller) {
+                onContactSeller(item);
+              }
+            }}
+            className="w-full" 
+            size="sm"
+            disabled={!item.isAvailable || !item.seller || !onContactSeller}
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            {item.seller ? 'Contact Seller' : 'Seller Removed'}
+          </Button>
+        )}
       </div>
     </Card>
   );

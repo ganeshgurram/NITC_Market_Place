@@ -22,6 +22,11 @@ router.get('/conversations', auth, async (req, res) => {
     const conversationsMap = new Map();
     
     messages.forEach(message => {
+      // Skip messages where sender or receiver is null (deleted users)
+      if (!message.sender || !message.receiver) {
+        return;
+      }
+
       const convId = message.conversationId;
       if (!conversationsMap.has(convId)) {
         conversationsMap.set(convId, {
@@ -37,7 +42,7 @@ router.get('/conversations', auth, async (req, res) => {
       }
       
       // Count unread messages
-      if (message.receiver._id.toString() === req.userId.toString() && !message.isRead) {
+      if (message.receiver && message.receiver._id && message.receiver._id.toString() === req.userId.toString() && !message.isRead) {
         conversationsMap.get(convId).unreadCount++;
       }
     });
@@ -62,6 +67,9 @@ router.get('/conversation/:conversationId', auth, async (req, res) => {
     .populate('itemId', 'title images')
     .sort({ createdAt: 1 });
 
+    // Filter out messages with deleted users (null sender or receiver)
+    const validMessages = messages.filter(msg => msg.sender && msg.receiver);
+
     // Mark messages as read
     await Message.updateMany(
       { 
@@ -72,7 +80,7 @@ router.get('/conversation/:conversationId', auth, async (req, res) => {
       { isRead: true }
     );
 
-    res.json({ messages });
+    res.json({ messages: validMessages });
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ error: 'Error fetching messages', message: error.message });

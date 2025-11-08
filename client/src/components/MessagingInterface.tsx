@@ -9,6 +9,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { messagesAPI } from "../utils/api";
 import { toast } from "sonner";
+import React from "react";
 
 interface Message {
   _id: string;
@@ -93,6 +94,7 @@ export function MessagingInterface({
   useEffect(() => {
     if (isOpen && selectedSeller) {
       const conversationId = generateConversationId(currentUserId, selectedSeller.id);
+      // Always select the conversation (will load messages if they exist)
       setSelectedConversation(conversationId);
     }
   }, [isOpen, selectedSeller, currentUserId]);
@@ -123,7 +125,7 @@ export function MessagingInterface({
       setMessages(data.messages || []);
     } catch (error: any) {
       // If conversation doesn't exist yet (new conversation), just set empty messages
-      console.log('No messages yet for this conversation');
+      console.log('No messages yet for this conversation:', conversationId);
       setMessages([]);
     }
   };
@@ -151,16 +153,18 @@ export function MessagingInterface({
       await messagesAPI.sendMessage(messageData);
       setNewMessage("");
 
+      // Generate conversation ID if not already set
+      const convId = selectedConversation || generateConversationId(currentUserId, receiverId);
+      
       // Refresh messages
-      if (selectedConversation) {
-        await fetchMessages(selectedConversation);
-      } else {
-        // If it's a new conversation, generate the ID and fetch
-        const newConvId = generateConversationId(currentUserId, receiverId);
-        setSelectedConversation(newConvId);
+      await fetchMessages(convId);
+      
+      // Set conversation if not already set
+      if (!selectedConversation) {
+        setSelectedConversation(convId);
       }
 
-      // Refresh conversations list
+      // Refresh conversations list to show the new message
       await fetchConversations();
     } catch (error: any) {
       console.error('Error sending message:', error);

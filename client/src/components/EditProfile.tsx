@@ -7,6 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Camera } from "lucide-react";
 import { usersAPI } from "../utils/api";
 import { toast } from "sonner";
+import React from "react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 

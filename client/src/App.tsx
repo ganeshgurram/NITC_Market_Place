@@ -22,7 +22,7 @@ import { Card, CardContent } from "./components/ui/card";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
 import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import { itemsAPI, reviewsAPI, transactionsAPI, authAPI } from "./utils/api";
+import { itemsAPI, reviewsAPI, transactionsAPI, authAPI, messagesAPI } from "./utils/api";
 import React from "react";
 // No mock items: load items from sessionStorage or start with empty list
 
@@ -76,6 +76,7 @@ export default function App() {
   const [selectedUserForRatings, setSelectedUserForRatings] = useState<any>(null);
   const [showTransactionComplete, setShowTransactionComplete] = useState(false);
   const [completedTransaction, setCompletedTransaction] = useState<any>(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [stats, setStats] = useState({
     activeListings: 0,
     totalUsers: 0,
@@ -146,19 +147,45 @@ export default function App() {
     setCurrentPage(`item/${itemId}`);
   };
 
+  // Helper function to check if current user is the seller
+  const isCurrentUserSeller = (item: Item): boolean => {
+    if (!currentUser || !item.seller) return false;
+    const sellerId = item.seller.id || (item.seller as any)._id;
+    const userId = currentUser.id || (currentUser as any)._id;
+    return sellerId && userId && sellerId.toString() === userId.toString();
+  };
+
   const handleContactSeller = (item: Item) => {
+    // Prevent seller from contacting themselves
+    if (isCurrentUserSeller(item)) {
+      toast.error("You cannot contact yourself");
+      return;
+    }
+
+    if (!item.seller) {
+      toast.error("Seller information not available");
+      return;
+    }
+
+    // Extract seller ID (handle both id and _id formats)
+    const sellerId = item.seller.id || (item.seller as any)._id;
+    if (!sellerId) {
+      toast.error("Seller ID not found");
+      return;
+    }
+
     setSelectedSellerForMessage({
-      id: item.seller?.id || item.seller?.id,
-      name: item.seller?.name,
-      rating: item.seller?.rating
+      id: sellerId,
+      name: item.seller.name,
+      rating: item.seller.rating
     });
     setSelectedItemForMessage({
-      id: item.id ,
+      id: item.id || (item as any)._id,
       title: item.title,
       images: item.images
     });
     setShowMessages(true);
-    toast(`Opening chat with ${item.seller?.name}`, {
+    toast(`Opening chat with ${item.seller.name}`, {
       description: `About: ${item.title}`
     });
   };
@@ -234,6 +261,26 @@ export default function App() {
         try { sessionStorage.setItem('nm_items', JSON.stringify(next)); } catch (e) {}
         return next;
       });
+
+      // Refresh stats after posting new item
+      try {
+        const statsData = await itemsAPI.getStats();
+        if (statsData) {
+          setStats({
+            activeListings: statsData.activeListings ?? 0,
+            totalUsers: statsData.totalUsers ?? 0,
+            totalTransactions: statsData.totalTransactions ?? 0,
+            categoryCounts: statsData.categoryCounts || {
+              textbook: 0,
+              'lab-equipment': 0,
+              stationery: 0,
+              other: 0
+            }
+          });
+        }
+      } catch (e) {
+        // Silently fail stats refresh
+      }
 
       toast("Item listed successfully!", {
         description: "Your item is now visible to other students."
@@ -563,11 +610,12 @@ export default function App() {
     const loadStats = async () => {
       try {
         const data = await itemsAPI.getStats();
+        console.log('Stats data received:', data);
         if (data) {
           setStats({
-            activeListings: data.activeListings || 0,
-            totalUsers: data.totalUsers || 0,
-            totalTransactions: data.totalTransactions || 0,
+            activeListings: data.activeListings ?? 0,
+            totalUsers: data.totalUsers ?? 0,
+            totalTransactions: data.totalTransactions ?? 0,
             categoryCounts: data.categoryCounts || {
               textbook: 0,
               'lab-equipment': 0,
@@ -577,13 +625,109 @@ export default function App() {
           });
         }
       } catch (e) {
-        console.error('Failed to load stats:', e);
-        // Keep default values on error
+        console.error('Failed to load stats from API:', e);
+        console.error('Error details:', e);
+        // Keep default values on error - will be updated when items load
       }
     };
 
     loadStats();
+    // Refresh stats periodically (every 60 seconds)
+    const interval = setInterval(loadStats, 60000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Update stats from loaded items as fallback
+  useEffect(() => {
+    if (items.length > 0) {
+      const activeListings = items.filter(item => item.isAvailable).length;
+      const categoryCounts = {
+        textbook: items.filter(item => item.isAvailable && item.category === 'textbook').length,
+        'lab-equipment': items.filter(item => item.isAvailable && item.category === 'lab-equipment').length,
+        stationery: items.filter(item => item.isAvailable && item.category === 'stationery').length,
+        other: items.filter(item => item.isAvailable && item.category === 'other').length
+      };
+      
+      // Only update if we don't have stats from API yet (activeListings is 0)
+      setStats(prev => {
+        if (prev.activeListings === 0 && prev.totalUsers === 0 && prev.totalTransactions === 0) {
+          return {
+            ...prev,
+            activeListings,
+            categoryCounts
+          };
+        }
+        return prev;
+      });
+    }
+  }, [items]);
+
+  // Refresh stats when items change (after posting new item, etc.)
+  useEffect(() => {
+    const refreshStats = async () => {
+      try {
+        const data = await itemsAPI.getStats();
+        if (data) {
+          setStats({
+            activeListings: data.activeListings ?? 0,
+            totalUsers: data.totalUsers ?? 0,
+            totalTransactions: data.totalTransactions ?? 0,
+            categoryCounts: data.categoryCounts || {
+              textbook: 0,
+              'lab-equipment': 0,
+              stationery: 0,
+              other: 0
+            }
+          });
+        }
+      } catch (e) {
+        // Silently fail on refresh
+      }
+    };
+    // Only refresh if we have items loaded (to avoid unnecessary calls)
+    if (items.length > 0) {
+      refreshStats();
+    }
+  }, [items.length]);
+
+  // Load unread message count
+  useEffect(() => {
+    if (!currentUser) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    const loadUnreadCount = async () => {
+      try {
+        const data = await messagesAPI.getUnreadCount();
+        setUnreadMessages(data.count || 0);
+      } catch (e) {
+        console.error('Failed to load unread count:', e);
+        setUnreadMessages(0);
+      }
+    };
+
+    loadUnreadCount();
+    
+    // Refresh unread count periodically (every 30 seconds)
+    const interval = setInterval(loadUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  // Refresh unread count when messages are closed (in case messages were read)
+  useEffect(() => {
+    if (!showMessages && currentUser) {
+      const refreshUnread = async () => {
+        try {
+          const data = await messagesAPI.getUnreadCount();
+          setUnreadMessages(data.count || 0);
+        } catch (e) {
+          // ignore errors
+        }
+      };
+      refreshUnread();
+    }
+  }, [showMessages, currentUser]);
 
   if (!currentUser) {
     if (authMode === "signup") {
@@ -620,7 +764,7 @@ export default function App() {
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
             searchQuery={searchQuery}
-            unreadMessages={1}
+            unreadMessages={unreadMessages}
           />
           <UserProfile
             user={currentUser}
@@ -654,7 +798,7 @@ export default function App() {
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
             searchQuery={searchQuery}
-            unreadMessages={1}
+            unreadMessages={unreadMessages}
           />
           <ListItemPage
             onBack={handleBackToMarketplace}
@@ -714,7 +858,7 @@ export default function App() {
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
             searchQuery={searchQuery}
-            unreadMessages={1}
+            unreadMessages={unreadMessages}
           />
           <ManageListings
             onBack={handleBackToMarketplace}
@@ -799,17 +943,19 @@ export default function App() {
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
             searchQuery={searchQuery}
-            unreadMessages={1}
+            unreadMessages={unreadMessages}
           />
           <ItemDetail
             item={selectedItem}
             onBack={() => setSelectedItem(null)}
-            onContactSeller={handleContactSeller}
+            onContactSeller={
+              // Disable contact seller if current user is the seller
+              isCurrentUserSeller(selectedItem) ? undefined : handleContactSeller
+            }
             onViewProfile={handleViewProfile}
             onTransactionComplete={
               // Only allow transaction completion if user is not the seller
-              currentUser &&
-              (selectedItem.seller?.id || (selectedItem.seller as any)._id) !== (currentUser.id || (currentUser as any)._id)
+              currentUser && !isCurrentUserSeller(selectedItem)
                 ? handleTransactionComplete
                 : undefined
             }
@@ -950,7 +1096,11 @@ export default function App() {
                 key={item.id ?? (item as any)._id ?? idx}
                 item={item}
                 onClick={handleItemClick}
-                onContactSeller={handleContactSeller}
+                onContactSeller={
+                  // Disable contact seller if current user is the seller
+                  isCurrentUserSeller(item) ? undefined : handleContactSeller
+                }
+                isOwnItem={isCurrentUserSeller(item)}
               />
             ))}
           </div>

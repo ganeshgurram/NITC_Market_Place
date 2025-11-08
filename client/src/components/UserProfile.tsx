@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ItemCard, Item } from "./ItemCard";
 import { itemsAPI, usersAPI, reviewsAPI } from "../utils/api";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import React from "react";
 
 interface UserProfileProps {
   user: {
@@ -60,11 +61,19 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, onMana
         if (isOwnProfile) {
           const data = await itemsAPI.getMyItems();
           if (!mounted) return;
-          if (data?.items) setItems(data.items);
+          if (data?.items) {
+            // Filter to show only available items
+            const availableItems = data.items.filter((item: Item) => item.isAvailable === true);
+            setItems(availableItems);
+          }
         } else if (userId) {
           const data = await usersAPI.getUserItems(userId);
           if (!mounted) return;
-          if (data?.items) setItems(data.items);
+          if (data?.items) {
+            // Filter to show only available items
+            const availableItems = data.items.filter((item: Item) => item.isAvailable === true);
+            setItems(availableItems);
+          }
         }
       } catch (err) {
         console.error('Failed to load user items', err);
@@ -253,7 +262,8 @@ export function UserProfile({ user, onBack, onEdit, isOwnProfile = false, onMana
                     key={(item as any)._id || (item as any).id || idx}
                     item={item}
                     onClick={handleItemClick}
-                    onContactSeller={handleContactSeller}
+                    onContactSeller={undefined}
+                    isOwnItem={isOwnProfile}
                   />
                 ))}
               </div>

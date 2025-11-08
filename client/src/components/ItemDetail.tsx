@@ -6,11 +6,12 @@ import { Separator } from "./ui/separator";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { formatDate } from "./ui/utils";
 import { Item } from "./ItemCard";
+import React from "react";
 
 interface ItemDetailProps {
   item: Item;
   onBack: () => void;
-  onContactSeller: (item: Item) => void;
+  onContactSeller?: (item: Item) => void;
   onViewProfile: (sellerId: string) => void;
   onTransactionComplete?: (item: Item) => void;
 }
@@ -184,15 +185,27 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
               </div>
             )}
 
-            <Button
-              onClick={() => onContactSeller(item)}
-              className="w-full"
-              size="lg"
-              disabled={!item.isAvailable}
-            >
-              <MessageCircle className="w-5 h-5 mr-2" />
-              {item.isAvailable ? "Contact Seller" : "Item Not Available"}
-            </Button>
+            {onContactSeller ? (
+              <Button
+                onClick={() => onContactSeller(item)}
+                className="w-full"
+                size="lg"
+                disabled={!item.isAvailable}
+              >
+                <MessageCircle className="w-5 h-5 mr-2" />
+                {item.isAvailable ? "Contact Seller" : "Item Not Available"}
+              </Button>
+            ) : (
+              <Button
+                className="w-full"
+                size="lg"
+                disabled
+                variant="outline"
+              >
+                <MessageCircle className="w-5 h-5 mr-2" />
+                Your Item
+              </Button>
+            )}
 
             {/* Demo Transaction Complete Button - Only show when available */}
             {onTransactionComplete && item.isAvailable && (

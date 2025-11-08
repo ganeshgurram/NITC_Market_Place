@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Upload, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
@@ -8,6 +8,9 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Card, CardContent } from "./ui/card";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { toast } from "sonner";
+import React from "react";
 
 interface PostItemDialogProps {
   isOpen: boolean;
@@ -77,16 +80,72 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
     });
   };
 
-  const handleImageUpload = () => {
-    // Mock image URLs for demonstration
-    const mockImages = [
-      "https://images.unsplash.com/photo-1595315342809-fa10945ed07c?w=400",
-      "https://images.unsplash.com/photo-1758876569703-ea9b21463691?w=400"
-    ];
-    setFormData({
-      ...formData,
-      images: [...formData.images, mockImages[formData.images.length % 2]]
-    });
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Cleanup object URLs when component unmounts or images change
+  useEffect(() => {
+    return () => {
+      formData.images.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [formData.images]);
+
+  // Upload image to backend and store returned path
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files?.length) return;
+    setUploadingImage(true);
+    try {
+      const file = event.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      const form = new FormData();
+      form.append('image', file);
+      // Upload to backend (use VITE_API_URL if set, otherwise default to localhost:5000)
+      const uploadEndpoint = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/upload`;
+      const res = await fetch(uploadEndpoint, {
+        method: 'POST',
+        body: form
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        toast.error('Image upload failed');
+        return;
+      }
+
+      // Build a full URL for the uploaded file so the image loads correctly from any origin
+      const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/i, '');
+      const fullUrl = data.url.startsWith('http') ? data.url : `${backendBase}${data.url}`;
+
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, fullUrl]
+      }));
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Image upload error:', error);
+      toast.error('Image upload error');
+    } finally {
+      setUploadingImage(false);
+      // Reset the input so the same file can be selected again
+      event.target.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const imageToRemove = formData.images[index];
+    // Revoke blob URL if it's a blob URL
+    if (imageToRemove.startsWith('blob:')) {
+      URL.revokeObjectURL(imageToRemove);
+    }
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
   };
 
   return (
@@ -255,8 +314,8 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
               {formData.images.length > 0 && (
                 <div className="grid grid-cols-4 gap-2">
                   {formData.images.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img
+                    <div key={index} className="relative group">
+                      <ImageWithFallback
                         src={image}
                         alt={`Upload ${index + 1}`}
                         className="w-full aspect-square object-cover rounded-md"
@@ -265,11 +324,8 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
                         type="button"
                         variant="destructive"
                         size="icon"
-                        className="absolute -top-2 -right-2 w-6 h-6"
-                        onClick={() => {
-                          const newImages = formData.images.filter((_, i) => i !== index);
-                          setFormData({ ...formData, images: newImages });
-                        }}
+                        className="absolute top-2 right-2 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeImage(index)}
                       >
                         <X className="w-3 h-3" />
                       </Button>
@@ -278,16 +334,48 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
                 </div>
               )}
               
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center p-6">
-                  <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">Add photos to showcase your item</p>
-                  <Button type="button" variant="outline" onClick={handleImageUpload}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Photo
-                  </Button>
-                </CardContent>
-              </Card>
+              {formData.images.length < 5 && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="image-upload-dialog"
+                    disabled={uploadingImage}
+                  />
+                  <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center p-6">
+                      {uploadingImage ? (
+                        <div className="flex flex-col items-center">
+                          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
+                          <p className="text-sm text-muted-foreground">Uploading...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground mb-3">Add photos to showcase your item</p>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => document.getElementById('image-upload-dialog')?.click()}
+                            disabled={uploadingImage}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Photo
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-2">Max size: 5MB</p>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+              {formData.images.length >= 5 && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Maximum 5 images allowed
+                </p>
+              )}
             </div>
           </div>
 
