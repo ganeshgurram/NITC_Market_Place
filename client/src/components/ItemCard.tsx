@@ -1,3 +1,4 @@
+import React from "react";
 import { Star, MapPin, Clock, MessageCircle } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -121,7 +122,6 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
             </div>
 
             <div className="flex items-center justify-between pt-2">
-<<<<<<< HEAD
               {item.seller ? (
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
@@ -136,20 +136,6 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
                         ({item.seller.reviewCount || 0})
                       </span>
                     </div>
-=======
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="text-xs">{item.seller?.name[0]}</span>
-                </div>
-                <div>
-                  <p className="text-xs">{item.seller?.name}</p>
-                  <div className="flex items-center space-x-1">
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs">{item.seller?.rating}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({item.seller?.reviewCount})
-                    </span>
->>>>>>> 47dd132d2c77c45f5b2c458c3caa479b2f91c88e
                   </div>
                 </div>
               ) : (

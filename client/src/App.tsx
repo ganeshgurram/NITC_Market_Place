@@ -432,7 +432,11 @@ export default function App() {
   const getUserItems = () => {
     const userId = currentUser?.id || (currentUser as any)?._id;
     return items.filter(item => {
-      const sellerId = item.seller.id || (item.seller as any)._id;
+      // Filter out items with null sellers (deleted users)
+      if (!item.seller) {
+        return false;
+      }
+      const sellerId = item.seller.id || (item.seller as any)?._id;
       return sellerId === userId;
     });
   };
