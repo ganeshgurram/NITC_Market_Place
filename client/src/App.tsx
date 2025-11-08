@@ -23,7 +23,7 @@ import { ImageWithFallback } from "./components/figma/ImageWithFallback";
 import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { itemsAPI, reviewsAPI, transactionsAPI, authAPI } from "./utils/api";
-
+import React from "react";
 // No mock items: load items from sessionStorage or start with empty list
 
 const categories = [
@@ -125,9 +125,9 @@ export default function App() {
 
   const handleContactSeller = (item: Item) => {
     setSelectedSellerForMessage({
-      id: item.seller.id || item.seller.id,
-      name: item.seller.name,
-      rating: item.seller.rating
+      id: item.seller?.id || item.seller?.id,
+      name: item.seller?.name,
+      rating: item.seller?.rating
     });
     setSelectedItemForMessage({
       id: item.id ,
