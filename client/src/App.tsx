@@ -89,6 +89,27 @@ export default function App() {
     }
   });
 
+  // Helper function to normalize department names for comparison
+  const normalizeDepartment = (dept: string): string => {
+    if (!dept) return "";
+    // Remove extra whitespace, convert to lowercase, and normalize common variations
+    return dept.trim().toLowerCase()
+      .replace(/\s+/g, " ") // Normalize multiple spaces to single space
+      .replace(/\s*&\s*/g, " and ") // Normalize & to " and " with spaces
+      .trim();
+  };
+
+  // Helper function to get core department name (without Engineering/Planning suffix)
+  const getCoreDepartment = (dept: string): string => {
+    const normalized = normalizeDepartment(dept);
+    // Remove common suffixes
+    return normalized
+      .replace(/\s+engineering\s*$/, "")
+      .replace(/\s+and\s+planning\s*$/, "")
+      .replace(/\s+planning\s*$/, "")
+      .trim();
+  };
+
   // Filter items based on search and filters
   const filteredItems = items.filter(item => {
     // Filter out items with null sellers (deleted users)
@@ -101,27 +122,57 @@ export default function App() {
       item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Department filter - case-insensitive comparison
-    const matchesDepartment = selectedDepartment === "All Departments" ||
-      (item.department && item.department.toLowerCase() === selectedDepartment.toLowerCase());
+    // Department filter - strict matching with normalization
+    // If "All Departments" is selected, all items pass
+    // If a specific department is selected, item must have matching department
+    let matchesDepartment = selectedDepartment === "All Departments";
+    if (!matchesDepartment && item.department) {
+      const normalizedSelected = normalizeDepartment(selectedDepartment);
+      const normalizedItem = normalizeDepartment(item.department);
+      
+      // Try exact normalized match first
+      matchesDepartment = normalizedItem === normalizedSelected;
+      
+      // If exact match fails, compare core department names
+      // (handles "Electronics & Communication" vs "Electronics & Communication Engineering")
+      if (!matchesDepartment) {
+        const coreSelected = getCoreDepartment(selectedDepartment);
+        const coreItem = getCoreDepartment(item.department);
+        // Only match if core names match exactly (prevents false matches)
+        matchesDepartment = coreSelected === coreItem && coreSelected.length > 0;
+      }
+    }
 
     // Semester filter - extract number from "1st Semester" format and compare
+    // If "All Semesters" is selected, all items pass (including items without semester)
+    // If a specific semester is selected, item must have matching semester
     let matchesSemester = selectedSemester === "All Semesters";
-    if (!matchesSemester && item.semester) {
-      // Extract number from "1st Semester", "2nd Semester", etc.
-      const selectedSemesterNum = selectedSemester.match(/\d+/)?.[0];
-      // Item semester might be "1", "1st", "1st Semester", etc.
-      const itemSemesterNum = String(item.semester).match(/\d+/)?.[0];
-      matchesSemester = selectedSemesterNum === itemSemesterNum;
+    if (selectedSemester !== "All Semesters") {
+      if (item.semester) {
+        // Extract number from "1st Semester", "2nd Semester", etc.
+        const selectedSemesterNum = selectedSemester.match(/\d+/)?.[0];
+        // Item semester might be "1", "1st", "1st Semester", etc.
+        const itemSemesterStr = String(item.semester).trim();
+        const itemSemesterNum = itemSemesterStr.match(/\d+/)?.[0];
+        // Compare numeric values - both must exist and match
+        matchesSemester = !!(selectedSemesterNum && itemSemesterNum && selectedSemesterNum === itemSemesterNum);
+      } else {
+        // Item has no semester, so it doesn't match a specific semester filter
+        matchesSemester = false;
+      }
     }
 
     // Type filter
+    // If "All Types" is selected, all items pass
+    // If a specific type is selected, item must have matching type
     const matchesType = selectedType === "All Types" ||
       (selectedType === "For Sale" && item.type === "sale") ||
       (selectedType === "For Rent" && item.type === "rent") ||
       (selectedType === "Free/Donation" && item.type === "free");
 
     // Availability filter
+    // If "All Items" is selected, all items pass (available and unavailable)
+    // If "Available Only" is selected, only items with isAvailable === true pass
     const matchesAvailability = selectedAvailability === "All Items" ||
       (selectedAvailability === "Available Only" && item.isAvailable === true);
 
