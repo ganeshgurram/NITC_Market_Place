@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect,useCallback } from "react";
 import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Package, CheckCircle, XCircle, MoreHorizontal, TrendingUp, MessageCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -17,17 +17,20 @@ export interface Item extends BaseItem {
   messages?: number;
   views?: number;
 }
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
+import { itemsAPI } from "../utils/api";
+
 
 interface ManageListingsProps {
   onBack: () => void;
   userItems: Item[];
   onItemUpdate: (itemId: string, updates: Partial<Item>) => void;
   onItemDelete: (itemId: string) => void;
+  onEditItem?: (item: Item) => void;
+  onViewDetails?: (item: Item) => void;
   currentUser: any;
 }
 
-// new: Transaction type and state
 interface Transaction {
   _id?: string;
   id?: string;
@@ -42,50 +45,92 @@ interface Transaction {
   reviewComment?: string;
 }
 
-export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, currentUser }: ManageListingsProps) {
+export function ManageListings({
+  onBack, userItems, onItemUpdate, onItemDelete, onEditItem, onViewDetails, currentUser
+}: ManageListingsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
-  // local fetched items for the current user (overrides prop when present)
+
   const [userItemsLocal, setUserItemsLocal] = useState<Item[] | null>(null);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemsError, setItemsError] = useState<string | null>(null);
-
-  // transactions state
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
 
+  const getApiBase = () => {
+    const apiFromProcess = (typeof process !== "undefined" && (process as any).env && (process as any).env.REACT_APP_API_URL) ? (process as any).env.REACT_APP_API_URL : undefined;
+    const apiFromImportMeta = (typeof import.meta !== "undefined" && (import.meta as any).env && ((import.meta as any).env.VITE_API_URL || (import.meta as any).env.REACT_APP_API_URL)) ? ((import.meta as any).env.VITE_API_URL || (import.meta as any).env.REACT_APP_API_URL) : undefined;
+    const apiFromGlobal = (typeof (globalThis as any) !== "undefined" && (globalThis as any).REACT_APP_API_URL) ? (globalThis as any).REACT_APP_API_URL : undefined;
+    return apiFromProcess || apiFromImportMeta || apiFromGlobal || 'http://localhost:5000';
+  };
+
+  // ✅ reusable reload function
+  const reloadMyItems = useCallback(async () => {
+    setItemsError(null);
+    setItemsLoading(true);
+    try {
+      const userId = currentUser?.id || currentUser?._id || currentUser?.user?.id;
+      if (!userId) {
+        setItemsError('Please login to view your listings');
+        setUserItemsLocal([]);
+        return;
+      }
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setItemsError('Authentication token not found. Please login again.');
+        setUserItemsLocal([]);
+        return;
+      }
+
+      const response = await itemsAPI.getMyItems();
+      if (response && (response.items || Array.isArray(response))) {
+        const list = response.items || response;
+        setUserItemsLocal(list);
+      } else {
+        throw new Error('Invalid response format from server');
+      }
+    } catch (err: any) {
+      console.error('Failed to load user items:', err);
+      setItemsError(err?.message || 'Failed to load user items');
+      setUserItemsLocal([]);
+
+      if (err?.message?.toLowerCase().includes('auth')) {
+        toast.error('Please login again to continue');
+        localStorage.removeItem('authToken');
+      }
+    } finally {
+      setItemsLoading(false);
+    }
+  }, [currentUser]);
+
   useEffect(() => {
-    // fetch transactions for current user (as seller)
+    reloadMyItems();
+  }, [reloadMyItems]);
+
+  useEffect(() => {
     async function loadTransactions() {
       setTxError(null);
       setTxLoading(true);
       try {
-        const sellerId = (currentUser && (currentUser.id ?? currentUser._id ?? currentUser.user?.id)) || '';
+        const sellerId = currentUser?.id ?? currentUser?._id ?? currentUser?.user?.id ?? '';
         if (!sellerId) {
           setTransactions([]);
           setTxLoading(false);
           return;
         }
 
-        const headers: Record<string,string> = { "Accept": "application/json" };
-        const token = (currentUser && (currentUser.token ?? currentUser.accessToken ?? currentUser.jwt));
-        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const headers: Record<string, string> = { "Accept": "application/json" };
+        const token = localStorage.getItem('authToken');
+        if (!token) throw new Error('Authentication token not found');
+        headers["Authorization"] = `Bearer ${token}`;
 
-        // robust API base detection (works in CRA, Vite or plain browser)
-        const apiFromProcess = (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_URL) ? process.env.REACT_APP_API_URL : undefined;
-        const apiFromImportMeta = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL)) ? (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL) : undefined;
-        const apiFromGlobal = (typeof (globalThis as any) !== "undefined" && (globalThis as any).REACT_APP_API_URL) ? (globalThis as any).REACT_APP_API_URL : undefined;
-        const API_BASE = apiFromProcess || apiFromImportMeta || apiFromGlobal || 'http://localhost:5000';
-
+        const API_BASE = getApiBase();
         const url = `${API_BASE}/api/transactions?seller=${encodeURIComponent(sellerId)}`;
-
         const res = await fetch(url, { headers });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `Status ${res.status}`);
-        }
+        if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         const list: Transaction[] = Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
         setTransactions(list);
@@ -101,56 +146,13 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
     loadTransactions();
   }, [currentUser]);
 
-  // Fetch current user's own listings
-  useEffect(() => {
-    async function loadMyItems() {
-      setItemsError(null);
-      setItemsLoading(true);
-      try {
-        const sellerId = (currentUser && (currentUser.id ?? currentUser._id ?? currentUser.user?.id)) || '';
-        if (!sellerId) {
-          setUserItemsLocal([]);
-          setItemsLoading(false);
-          return;
-        }
-
-        const headers: Record<string,string> = { "Accept": "application/json", "Content-Type": "application/json" };
-        const token = (currentUser && (currentUser.token ?? currentUser.accessToken ?? currentUser.jwt));
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
-        const apiFromProcess = (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_URL) ? process.env.REACT_APP_API_URL : undefined;
-        const apiFromImportMeta = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL)) ? (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL) : undefined;
-        const apiFromGlobal = (typeof (globalThis as any) !== "undefined" && (globalThis as any).REACT_APP_API_URL) ? (globalThis as any).REACT_APP_API_URL : undefined;
-        const API_BASE = apiFromProcess || apiFromImportMeta || apiFromGlobal || 'http://localhost:5000';
-
-        const url = `${API_BASE}/api/items/user/my-items`;
-        const res = await fetch(url, { headers });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `Status ${res.status}`);
-        }
-        const data = await res.json();
-        const list: Item[] = Array.isArray(data) ? data : (data.items || data.data || []);
-        setUserItemsLocal(list);
-      } catch (err: any) {
-        console.error('Failed to load user items:', err);
-        setItemsError(err?.message || 'Failed to load user items');
-        setUserItemsLocal([]);
-      } finally {
-        setItemsLoading(false);
-      }
-    }
-
-    loadMyItems();
-  }, [currentUser]);
-
-  // Use fetched items when available, otherwise fallback to prop
   const displayedItems = userItemsLocal ?? userItems;
 
+  const getItemId = (it: any) => (it && (it.id ?? it._id)) || '';
+
   const filteredItems = displayedItems.filter(item => {
-    const matchesSearch = searchQuery === "" || 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || 
+    const matchesSearch = searchQuery === "" || item.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" ||
       (statusFilter === "available" && item.isAvailable) ||
       (statusFilter === "sold" && !item.isAvailable) ||
       (statusFilter === "hidden" && item.status === "hidden");
@@ -162,96 +164,62 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
   const totalViews = displayedItems.reduce((acc, item) => acc + (item.views ?? 0), 0);
   const totalMessages = displayedItems.reduce((acc, item) => acc + (item.messages ?? 0), 0);
 
-  // helper to compute API base (works with CRA/Vite or default localhost)
-  const getApiBase = () => {
-    const apiFromProcess = (typeof process !== "undefined" && (process as any).env && (process as any).env.REACT_APP_API_URL) ? (process as any).env.REACT_APP_API_URL : undefined;
-    const apiFromImportMeta = (typeof import.meta !== "undefined" && (import.meta as any).env && ((import.meta as any).env.VITE_API_URL || (import.meta as any).env.REACT_APP_API_URL)) ? ((import.meta as any).env.VITE_API_URL || (import.meta as any).env.REACT_APP_API_URL) : undefined;
-    const apiFromGlobal = (typeof (globalThis as any) !== "undefined" && (globalThis as any).REACT_APP_API_URL) ? (globalThis as any).REACT_APP_API_URL : undefined;
-    return apiFromProcess || apiFromImportMeta || apiFromGlobal || 'http://localhost:5000';
-  };
-
   const handleStatusChange = async (itemId: string, newStatus: string) => {
-    const updates: Partial<Item> = {};
-    
-    if (newStatus === "sold") {
-      updates.isAvailable = false;
-      updates.status = "sold";
-    } else if (newStatus === "available") {
-      updates.isAvailable = true;
-      updates.status = "available";
-    } else {
-      updates.status = newStatus as any;
-      if (newStatus === "hidden") {
-        updates.isAvailable = false;
-      }
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error('Please sign in to update items');
+      return;
     }
 
-    // optimistic update to parent
-    onItemUpdate(itemId, updates);
-    toast(`Item marked as ${newStatus}`, {
-      description: "Your listing has been updated successfully."
-    });
+    const updates: Partial<Item> = {
+      isAvailable: newStatus === 'available',
+      status: newStatus,
+    };
 
-    // Persist to backend
     try {
-      const token = (currentUser && (currentUser.token ?? currentUser.accessToken ?? currentUser.jwt));
       const API_BASE = getApiBase();
       const url = `${API_BASE}/api/items/${encodeURIComponent(itemId)}`;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(updates) });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Status ${res.status}`);
-      }
-      // update local state if we have it
-      setUserItemsLocal(prev => prev ? prev.map(i => (i.id === itemId || i._id === itemId) ? { ...i, ...updates } : i) : prev);
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      toast.success(`Item marked as ${newStatus}`);
+      await reloadMyItems(); // ✅ reload listings tab
     } catch (err: any) {
-      console.error('Failed to update item on server:', err);
-      // optional toast.error when available
-      // @ts-ignore
-      toast.error?.(err?.message || 'Failed to save update');
+      console.error('Failed to update item:', err);
+      toast.error(err?.message || 'Failed to update item');
     }
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    // call backend to delete
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error('Please sign in to delete items');
+      return;
+    }
+
     try {
-      const token = (currentUser && (currentUser.token ?? currentUser.accessToken ?? currentUser.jwt));
       const API_BASE = getApiBase();
       const url = `${API_BASE}/api/items/${encodeURIComponent(itemId)}`;
-      const headers: Record<string,string> = { 'Accept': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(url, { method: 'DELETE', headers });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Status ${res.status}`);
-      }
+      const res = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(await res.text());
 
-      // remove locally
-      setUserItemsLocal(prev => prev ? prev.filter(i => !(i.id === itemId || i._id === itemId)) : prev);
-      onItemDelete(itemId);
+      toast.success('Item deleted successfully');
+      await reloadMyItems(); // ✅ reload listings tab
       setDeleteItemId(null);
-      toast("Item deleted successfully", {
-        description: "Your listing has been removed from the marketplace."
-      });
     } catch (err: any) {
       console.error('Failed to delete item:', err);
-      // @ts-ignore
-      toast.error?.(err?.message || 'Failed to delete item');
+      toast.error(err?.message || 'Failed to delete item');
     }
   };
 
   const getStatusBadge = (item: Item) => {
-    if (!item.isAvailable && item.status !== "hidden") {
-      return <Badge variant="secondary">Sold</Badge>;
-    }
-    if (item.status === "hidden") {
-      return <Badge variant="destructive">Hidden</Badge>;
-    }
-    if (item.status === "reserved") {
-      return <Badge variant="outline">Reserved</Badge>;
-    }
+    if (!item.isAvailable && item.status !== "hidden") return <Badge variant="secondary">Sold</Badge>;
+    if (item.status === "hidden") return <Badge variant="destructive">Hidden</Badge>;
+    if (item.status === "reserved") return <Badge variant="outline">Reserved</Badge>;
     return <Badge variant="default">Available</Badge>;
   };
 
@@ -295,7 +263,7 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
               </p>
             </CardContent>
           </Card>
-
+            
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Views</CardTitle>
@@ -367,7 +335,6 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                     <TableHead>Price</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Posted</TableHead>
-                    <TableHead>Views</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -399,9 +366,8 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                       </TableCell>
                       <TableCell>{getStatusBadge(item)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {item.postedAt}
+                        {item.createdAt}
                       </TableCell>
-                      <TableCell>{item.views || 0}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -410,14 +376,8 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit Listing
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
+                            
+                            
                             {item.isAvailable ? (
                               <>
                                 <DropdownMenuItem onClick={() => handleStatusChange(itemId, "sold")}>
@@ -453,7 +413,16 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
 
             </Card>
 
-            {filteredItems.length === 0 && (
+            {itemsError ? (
+              <div className="text-center py-12">
+                <XCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+                <h3 className="text-destructive">Error Loading Listings</h3>
+                <p className="text-muted-foreground mb-4">{itemsError}</p>
+                <Button onClick={() => window.location.reload()} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            ) : filteredItems.length === 0 && (
               <div className="text-center py-12">
                 <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
                 <h3>No listings found</h3>
@@ -510,7 +479,7 @@ export function ManageListings({ onBack, userItems, onItemUpdate, onItemDelete, 
 
                     {!txLoading && transactions.map((transaction) => {
                       const itemId = typeof transaction.item === "string" ? transaction.item : (transaction.item?._id || '');
-                      const item = displayedItems.find(i => i.id === itemId || i._id === itemId);
+                      const item = displayedItems.find(i => i.id === itemId);
                       return (
                         <TableRow key={transaction._id || transaction.id}>
                           <TableCell>

@@ -128,7 +128,7 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
             <Label>Listing Type *</Label>
             <RadioGroup
               value={formData.type}
-              onValueChange={(value) => setFormData({ ...formData, type: value })}
+              onValueChange={(value:any) => setFormData({ ...formData, type: value })}
               className="flex space-x-6 mt-2"
             >
               <div className="flex items-center space-x-2">
@@ -165,7 +165,7 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Category *</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+              <Select value={formData.category} onValueChange={(value:any) => setFormData({ ...formData, category: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -181,7 +181,7 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
 
             <div>
               <Label>Department *</Label>
-              <Select value={formData.department} onValueChange={(value) => setFormData({ ...formData, department: value })}>
+              <Select value={formData.department} onValueChange={(value:any) => setFormData({ ...formData, department: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
@@ -222,7 +222,7 @@ export function PostItemDialog({ isOpen, onClose, onSubmit }: PostItemDialogProp
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Condition *</Label>
-              <Select value={formData.condition} onValueChange={(value) => setFormData({ ...formData, condition: value })}>
+              <Select value={formData.condition} onValueChange={(value:any) => setFormData({ ...formData, condition: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select condition" />
                 </SelectTrigger>
