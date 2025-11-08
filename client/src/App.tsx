@@ -120,17 +120,17 @@ export default function App() {
 
   const handleContactSeller = (item: Item) => {
     setSelectedSellerForMessage({
-      id: item.seller.id || item.seller._id,
+      id: item.seller.id || item.seller.id,
       name: item.seller.name,
       rating: item.seller.rating
     });
     setSelectedItemForMessage({
-      id: item.id || item._id,
+      id: item.id ,
       title: item.title,
       images: item.images
     });
     setShowMessages(true);
-    toast(`Opening chat with ${item.seller.name}`, {
+    toast(`Opening chat with ${item.seller?.name}`, {
       description: `About: ${item.title}`
     });
   };

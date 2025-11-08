@@ -123,15 +123,15 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
             <div className="flex items-center justify-between pt-2">
               <div className="flex items-center space-x-2">
                 <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="text-xs">{item.seller.name[0]}</span>
+                  <span className="text-xs">{item.seller?.name[0]}</span>
                 </div>
                 <div>
-                  <p className="text-xs">{item.seller.name}</p>
+                  <p className="text-xs">{item.seller?.name}</p>
                   <div className="flex items-center space-x-1">
                     <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs">{item.seller.rating}</span>
+                    <span className="text-xs">{item.seller?.rating}</span>
                     <span className="text-xs text-muted-foreground">
-                      ({item.seller.reviewCount})
+                      ({item.seller?.reviewCount})
                     </span>
                   </div>
                 </div>
