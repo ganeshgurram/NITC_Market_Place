@@ -1,3 +1,4 @@
+import React from "react";
 import { Star, MapPin, Clock, MessageCircle } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -23,7 +24,7 @@ export interface Item {
     avatar?: string;
     rating: number;
     reviewCount: number;
-  };
+  } | null;
   location: string;
   createdAt: string;
   isAvailable: boolean;
@@ -121,21 +122,32 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="text-xs">{item.seller?.name[0]}</span>
-                </div>
-                <div>
-                  <p className="text-xs">{item.seller?.name}</p>
-                  <div className="flex items-center space-x-1">
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs">{item.seller?.rating}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({item.seller?.reviewCount})
-                    </span>
+              {item.seller ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+                    <span className="text-xs">{item.seller.name?.[0] || '?'}</span>
+                  </div>
+                  <div>
+                    <p className="text-xs">{item.seller.name || 'Unknown Seller'}</p>
+                    <div className="flex items-center space-x-1">
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                      <span className="text-xs">{item.seller.rating || 0}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({item.seller.reviewCount || 0})
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+                    <span className="text-xs">?</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Seller removed</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -145,14 +157,16 @@ export function ItemCard({ item, onClick, onContactSeller }: ItemCardProps) {
         <Button 
           onClick={(e) => {
             e.stopPropagation();
-            onContactSeller(item);
+            if (item.seller) {
+              onContactSeller(item);
+            }
           }}
           className="w-full" 
           size="sm"
-          disabled={!item.isAvailable}
+          disabled={!item.isAvailable || !item.seller}
         >
           <MessageCircle className="w-4 h-4 mr-2" />
-          Contact Seller
+          {item.seller ? 'Contact Seller' : 'Seller Removed'}
         </Button>
       </div>
     </Card>

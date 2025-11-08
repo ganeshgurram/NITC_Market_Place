@@ -23,7 +23,7 @@ import { ImageWithFallback } from "./components/figma/ImageWithFallback";
 import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { itemsAPI, reviewsAPI, transactionsAPI, authAPI } from "./utils/api";
-
+import React from "react";
 // No mock items: load items from sessionStorage or start with empty list
 
 const categories = [
@@ -79,6 +79,11 @@ export default function App() {
 
   // Filter items based on search and filters
   const filteredItems = items.filter(item => {
+    // Filter out items with null sellers (deleted users)
+    if (!item.seller) {
+      return false;
+    }
+    
     const matchesSearch = searchQuery === "" ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -120,9 +125,9 @@ export default function App() {
 
   const handleContactSeller = (item: Item) => {
     setSelectedSellerForMessage({
-      id: item.seller.id || item.seller.id,
-      name: item.seller.name,
-      rating: item.seller.rating
+      id: item.seller?.id || item.seller?.id,
+      name: item.seller?.name,
+      rating: item.seller?.rating
     });
     setSelectedItemForMessage({
       id: item.id ,
@@ -427,7 +432,11 @@ export default function App() {
   const getUserItems = () => {
     const userId = currentUser?.id || (currentUser as any)?._id;
     return items.filter(item => {
-      const sellerId = item.seller.id || (item.seller as any)._id;
+      // Filter out items with null sellers (deleted users)
+      if (!item.seller) {
+        return false;
+      }
+      const sellerId = item.seller.id || (item.seller as any)?._id;
       return sellerId === userId;
     });
   };
