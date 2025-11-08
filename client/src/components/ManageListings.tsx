@@ -18,7 +18,7 @@ export interface Item extends BaseItem {
   views?: number;
 }
 import { toast } from "sonner";
-import { itemsAPI } from "../utils/api";
+import { itemsAPI, messagesAPI } from "../utils/api";
 
 
 interface ManageListingsProps {
@@ -35,8 +35,15 @@ interface Transaction {
   _id?: string;
   id?: string;
   item?: string | { _id?: string; title?: string };
-  buyerName?: string;
-  buyerEmail?: string;
+  buyer?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+    rating?: number;
+    reviewCount?: number;
+  };
+  buyerName?: string; // Legacy field for backward compatibility
+  buyerEmail?: string; // Legacy field for backward compatibility
   completedDate?: string;
   amount?: number;
   status?: string;
@@ -58,6 +65,8 @@ export function ManageListings({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
 
   const getApiBase = () => {
     const apiFromProcess = (typeof process !== "undefined" && (process as any).env && (process as any).env.REACT_APP_API_URL) ? (process as any).env.REACT_APP_API_URL : undefined;
@@ -148,6 +157,37 @@ export function ManageListings({
 
   const displayedItems = userItemsLocal ?? userItems;
 
+  // Load conversations to count unique contacts
+  useEffect(() => {
+    async function loadConversations() {
+      if (!currentUser) {
+        setConversations([]);
+        return;
+      }
+
+      setConversationsLoading(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setConversations([]);
+          setConversationsLoading(false);
+          return;
+        }
+
+        const response = await messagesAPI.getConversations();
+        const conversationsList = response?.conversations || [];
+        setConversations(conversationsList);
+      } catch (err: any) {
+        console.error("Failed to load conversations:", err);
+        setConversations([]);
+      } finally {
+        setConversationsLoading(false);
+      }
+    }
+
+    loadConversations();
+  }, [currentUser, displayedItems.length]);
+
   const getItemId = (it: any) => (it && (it.id ?? it._id)) || '';
 
   const filteredItems = displayedItems.filter(item => {
@@ -162,7 +202,50 @@ export function ManageListings({
   const activeItems = displayedItems.filter(item => item.isAvailable).length;
   const soldItems = displayedItems.filter(item => !item.isAvailable).length;
   const totalViews = displayedItems.reduce((acc, item) => acc + (item.views ?? 0), 0);
-  const totalMessages = displayedItems.reduce((acc, item) => acc + (item.messages ?? 0), 0);
+  
+  // Calculate total unique contacts who have messaged about the user's items
+  const totalMessages = (() => {
+    if (!currentUser || conversations.length === 0 || displayedItems.length === 0) {
+      return 0;
+    }
+
+    const userId = currentUser?.id || currentUser?._id || currentUser?.user?.id;
+    if (!userId) return 0;
+
+    // Get all item IDs that belong to the current user (normalize to strings for comparison)
+    const userItemIds = new Set(
+      displayedItems.map(item => {
+        const itemId = item.id || (item as any)._id;
+        return itemId ? itemId.toString() : null;
+      }).filter(Boolean) as string[]
+    );
+
+    if (userItemIds.size === 0) return 0;
+
+    // Find unique contacts who have messaged about the user's items
+    // A contact is someone who sent a message to the current user about one of their items
+    const uniqueContacts = new Set<string>();
+    
+    conversations.forEach(conversation => {
+      // Check if the conversation is about one of the user's items
+      if (!conversation.item) return;
+      
+      const itemId = conversation.item._id || conversation.item.id;
+      if (!itemId) return;
+      
+      const itemIdStr = itemId.toString();
+      if (userItemIds.has(itemIdStr)) {
+        // This conversation is about one of the user's items
+        // The otherUser is the person who contacted them
+        const otherUserId = conversation.otherUser?._id || conversation.otherUser?.id;
+        if (otherUserId) {
+          uniqueContacts.add(otherUserId.toString());
+        }
+      }
+    });
+
+    return uniqueContacts.size;
+  })();
 
   const handleStatusChange = async (itemId: string, newStatus: string) => {
     const token = localStorage.getItem('authToken');
@@ -188,6 +271,14 @@ export function ManageListings({
 
       toast.success(`Item marked as ${newStatus}`);
       await reloadMyItems(); // ✅ reload listings tab
+      // Reload conversations to update message count
+      try {
+        const response = await messagesAPI.getConversations();
+        const conversationsList = response?.conversations || [];
+        setConversations(conversationsList);
+      } catch (err) {
+        // Silently fail - conversations will refresh on next load
+      }
     } catch (err: any) {
       console.error('Failed to update item:', err);
       toast.error(err?.message || 'Failed to update item');
@@ -209,6 +300,14 @@ export function ManageListings({
 
       toast.success('Item deleted successfully');
       await reloadMyItems(); // ✅ reload listings tab
+      // Reload conversations to update message count
+      try {
+        const response = await messagesAPI.getConversations();
+        const conversationsList = response?.conversations || [];
+        setConversations(conversationsList);
+      } catch (err) {
+        // Silently fail - conversations will refresh on next load
+      }
       setDeleteItemId(null);
     } catch (err: any) {
       console.error('Failed to delete item:', err);
@@ -316,7 +415,6 @@ export function ManageListings({
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="available">Available</SelectItem>
                     <SelectItem value="sold">Sold</SelectItem>
-                    <SelectItem value="hidden">Hidden</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -484,8 +582,12 @@ export function ManageListings({
                         <TableRow key={transaction._id || transaction.id}>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{transaction.buyerName ?? "Buyer"}</p>
-                              <p className="text-sm text-muted-foreground">{transaction.buyerEmail}</p>
+                              <p className="font-medium">
+                                {transaction.buyer?.name || transaction.buyerName || "Buyer"}
+                              </p>
+                              {transaction.buyer?.email && (
+                                <p className="text-sm text-muted-foreground">{transaction.buyer.email}</p>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
