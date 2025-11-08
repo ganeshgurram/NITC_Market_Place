@@ -20,10 +20,11 @@ import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Card, CardContent } from "./components/ui/card";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
-import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp } from "lucide-react";
+import { BookOpen, Beaker, PenTool, Users, Star, TrendingUp, LucideBox } from "lucide-react";
 import { toast } from "sonner";
 import { itemsAPI, reviewsAPI, transactionsAPI, authAPI, messagesAPI } from "./utils/api";
 import React from "react";
+import { it } from "node:test";
 // No mock items: load items from sessionStorage or start with empty list
 
 const categories = [
@@ -79,6 +80,7 @@ export default function App() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [stats, setStats] = useState({
     activeListings: 0,
+    totalListings: 0,
     totalUsers: 0,
     totalTransactions: 0,
     categoryCounts: {
@@ -319,6 +321,7 @@ export default function App() {
         if (statsData) {
           setStats({
             activeListings: statsData.activeListings ?? 0,
+            totalListings: statsData.totalListings ?? 0,
             totalUsers: statsData.totalUsers ?? 0,
             totalTransactions: statsData.totalTransactions ?? 0,
             categoryCounts: statsData.categoryCounts || {
@@ -665,6 +668,7 @@ export default function App() {
         if (data) {
           setStats({
             activeListings: data.activeListings ?? 0,
+            totalListings: data.totalListings ?? 0,
             totalUsers: data.totalUsers ?? 0,
             totalTransactions: data.totalTransactions ?? 0,
             categoryCounts: data.categoryCounts || {
@@ -692,6 +696,7 @@ export default function App() {
   useEffect(() => {
     if (items.length > 0) {
       const activeListings = items.filter(item => item.isAvailable).length;
+      const totalListings=items.length;
       const categoryCounts = {
         textbook: items.filter(item => item.isAvailable && item.category === 'textbook').length,
         'lab-equipment': items.filter(item => item.isAvailable && item.category === 'lab-equipment').length,
@@ -721,6 +726,7 @@ export default function App() {
         if (data) {
           setStats({
             activeListings: data.activeListings ?? 0,
+            totalListings: data.totalListings ?? 0,
             totalUsers: data.totalUsers ?? 0,
             totalTransactions: data.totalTransactions ?? 0,
             categoryCounts: data.categoryCounts || {
@@ -1091,6 +1097,18 @@ export default function App() {
                   </div>
                 </CardContent>
               </Card>
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <LucideBox className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                  <div>
+                    <div className="text-2xl">{stats.totalListings}</div>
+                    <p className="text-sm text-muted-foreground">Total Listings</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+
+
             </div>
 
             {/* Categories */}
