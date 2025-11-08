@@ -117,6 +117,10 @@ export const itemsAPI = {
   getMyItems: async () => {
     return await apiRequest('/items/user/my-items');
   },
+
+  getStats: async () => {
+    return await apiRequest('/items/stats');
+  },
 };
 
 // Users API

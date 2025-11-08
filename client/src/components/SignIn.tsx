@@ -136,15 +136,7 @@ export function SignIn({ onSignIn, onSwitchToSignUp }: SignInProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center space-x-2 text-sm">
-                    <input type="checkbox" className="rounded" />
-                    <span>Remember me</span>
-                  </label>
-                  <Button variant="link" className="p-0 h-auto text-sm">
-                    Forgot password?
-                  </Button>
-                </div>
+                
 
                 <Button 
                   type="submit" 
@@ -182,7 +174,7 @@ export function SignIn({ onSignIn, onSwitchToSignUp }: SignInProps) {
           </Card>
 
           {/* Demo Credentials */}
-          <Card className="bg-muted/50">
+          {/* <Card className="bg-muted/50">
             <CardContent className="p-4">
               <h4 className="font-medium mb-2">Demo Credentials</h4>
               <div className="text-sm text-muted-foreground space-y-1">
@@ -190,7 +182,7 @@ export function SignIn({ onSignIn, onSwitchToSignUp }: SignInProps) {
                 <p><strong>Admin:</strong> admin@nitc.ac.in / admin123</p>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Footer */}
           <div className="text-center text-sm text-muted-foreground">

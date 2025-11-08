@@ -27,10 +27,10 @@ import React from "react";
 // No mock items: load items from sessionStorage or start with empty list
 
 const categories = [
-  { icon: BookOpen, title: "Textbooks", count: 245, color: "bg-blue-100 text-blue-700" },
-  { icon: Beaker, title: "Lab Equipment", count: 67, color: "bg-green-100 text-green-700" },
-  { icon: PenTool, title: "Stationery", count: 156, color: "bg-purple-100 text-purple-700" },
-  { icon: Users, title: "Other Items", count: 89, color: "bg-orange-100 text-orange-700" }
+  { icon: BookOpen, title: "Textbooks", key: "textbook", color: "bg-blue-100 text-blue-700" },
+  { icon: Beaker, title: "Lab Equipment", key: "lab-equipment", color: "bg-green-100 text-green-700" },
+  { icon: PenTool, title: "Stationery", key: "stationery", color: "bg-purple-100 text-purple-700" },
+  { icon: Users, title: "Other Items", key: "other", color: "bg-orange-100 text-orange-700" }
 ];
 
 export default function App() {
@@ -76,6 +76,17 @@ export default function App() {
   const [selectedUserForRatings, setSelectedUserForRatings] = useState<any>(null);
   const [showTransactionComplete, setShowTransactionComplete] = useState(false);
   const [completedTransaction, setCompletedTransaction] = useState<any>(null);
+  const [stats, setStats] = useState({
+    activeListings: 0,
+    totalUsers: 0,
+    totalTransactions: 0,
+    categoryCounts: {
+      textbook: 0,
+      'lab-equipment': 0,
+      stationery: 0,
+      other: 0
+    }
+  });
 
   // Filter items based on search and filters
   const filteredItems = items.filter(item => {
@@ -547,6 +558,33 @@ export default function App() {
     loadItems();
   }, [currentUser]);
 
+  // Load stats from backend
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await itemsAPI.getStats();
+        if (data) {
+          setStats({
+            activeListings: data.activeListings || 0,
+            totalUsers: data.totalUsers || 0,
+            totalTransactions: data.totalTransactions || 0,
+            categoryCounts: data.categoryCounts || {
+              textbook: 0,
+              'lab-equipment': 0,
+              stationery: 0,
+              other: 0
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load stats:', e);
+        // Keep default values on error
+      }
+    };
+
+    loadStats();
+  }, []);
+
   if (!currentUser) {
     if (authMode === "signup") {
       return (
@@ -831,7 +869,7 @@ export default function App() {
                 <CardContent className="p-6 text-center">
                   <TrendingUp className="w-8 h-8 mx-auto mb-2 text-primary" />
                   <div>
-                    <div className="text-2xl">500+</div>
+                    <div className="text-2xl">{stats.activeListings}</div>
                     <p className="text-sm text-muted-foreground">Active Listings</p>
                   </div>
                 </CardContent>
@@ -841,19 +879,17 @@ export default function App() {
                 <CardContent className="p-6 text-center">
                   <Users className="w-8 h-8 mx-auto mb-2 text-green-600" />
                   <div>
-                    <div className="text-2xl">1200+</div>
+                    <div className="text-2xl">{stats.totalUsers}</div>
                     <p className="text-sm text-muted-foreground">Users</p>
                   </div>
                 </CardContent>
               </Card>
 
-              
-
               <Card>
                 <CardContent className="p-6 text-center">
                   <BookOpen className="w-8 h-8 mx-auto mb-2 text-purple-600" />
                   <div>
-                    <div className="text-2xl">300+</div>
+                    <div className="text-2xl">{stats.totalTransactions}</div>
                     <p className="text-sm text-muted-foreground">Transactions</p>
                   </div>
                 </CardContent>
@@ -869,7 +905,7 @@ export default function App() {
                       <category.icon className="w-6 h-6" />
                     </div>
                     <h3 className="font-medium mb-1">{category.title}</h3>
-                    <p className="text-sm text-muted-foreground">{category.count} items</p>
+                    <p className="text-sm text-muted-foreground">{stats.categoryCounts[category.key as keyof typeof stats.categoryCounts] || 0} items</p>
                   </CardContent>
                 </Card>
               ))}

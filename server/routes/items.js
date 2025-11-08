@@ -2,7 +2,54 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const Item = require('../models/Item');
+const User = require('../models/User');
+const Transaction = require('../models/Transaction');
 const { auth } = require('../middleware/auth');
+
+// Get marketplace statistics (public endpoint)
+router.get('/stats', async (req, res) => {
+  try {
+    // Count active listings
+    const activeListings = await Item.countDocuments({ isAvailable: true });
+    
+    // Count total users (excluding admins)
+    const totalUsers = await User.countDocuments({ role: 'student' });
+    
+    // Count total transactions
+    const totalTransactions = await Transaction.countDocuments();
+    
+    // Count items by category
+    const categoryCounts = await Item.aggregate([
+      { $match: { isAvailable: true } },
+      { $group: { _id: '$category', count: { $sum: 1 } } }
+    ]);
+    
+    // Map category counts to a more usable format
+    const categoryMap = {
+      'textbook': 0,
+      'lab-equipment': 0,
+      'stationery': 0,
+      'electronics': 0,
+      'other': 0
+    };
+    
+    categoryCounts.forEach(item => {
+      if (categoryMap.hasOwnProperty(item._id)) {
+        categoryMap[item._id] = item.count;
+      }
+    });
+    
+    res.json({
+      activeListings,
+      totalUsers,
+      totalTransactions,
+      categoryCounts: categoryMap
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Error fetching stats', message: error.message });
+  }
+});
 
 // Get all items (with filters)
 router.get('/', async (req, res) => {

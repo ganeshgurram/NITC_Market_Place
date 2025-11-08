@@ -203,7 +203,7 @@ export function ItemDetail({ item, onBack, onContactSeller, onViewProfile, onTra
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5 mr-2" />
-                Complete Transaction (Demo)
+                Complete Transaction
               </Button>
             )}
 
