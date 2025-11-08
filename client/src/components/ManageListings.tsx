@@ -35,8 +35,15 @@ interface Transaction {
   _id?: string;
   id?: string;
   item?: string | { _id?: string; title?: string };
-  buyerName?: string;
-  buyerEmail?: string;
+  buyer?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+    rating?: number;
+    reviewCount?: number;
+  };
+  buyerName?: string; // Legacy field for backward compatibility
+  buyerEmail?: string; // Legacy field for backward compatibility
   completedDate?: string;
   amount?: number;
   status?: string;
@@ -575,8 +582,12 @@ export function ManageListings({
                         <TableRow key={transaction._id || transaction.id}>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{transaction.buyerName ?? "Buyer"}</p>
-                              <p className="text-sm text-muted-foreground">{transaction.buyerEmail}</p>
+                              <p className="font-medium">
+                                {transaction.buyer?.name || transaction.buyerName || "Buyer"}
+                              </p>
+                              {transaction.buyer?.email && (
+                                <p className="text-sm text-muted-foreground">{transaction.buyer.email}</p>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>

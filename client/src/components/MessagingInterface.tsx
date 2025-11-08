@@ -254,12 +254,12 @@ export function MessagingInterface({
                         </span>
                       </div>
 
-                      {conversation.otherUser.rating && (
-                        <div className="flex items-center space-x-1 mb-1">
-                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-xs">{conversation.otherUser.rating.toFixed(1)}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center space-x-1 mb-1">
+                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                        <span className="text-xs">
+                          {conversation.otherUser.rating ? conversation.otherUser.rating.toFixed(1) : '0.0'}
+                        </span>
+                      </div>
 
                       <p className="text-sm text-muted-foreground truncate mb-2">
                         {conversation.lastMessage}
@@ -307,12 +307,12 @@ export function MessagingInterface({
 
                   <div>
                     <h4 className="font-medium">{currentConversation.otherUser.name}</h4>
-                    {currentConversation.otherUser.rating && (
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm">{currentConversation.otherUser.rating.toFixed(1)}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center space-x-1">
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm">
+                        {currentConversation.otherUser.rating ? currentConversation.otherUser.rating.toFixed(1) : '0.0'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 

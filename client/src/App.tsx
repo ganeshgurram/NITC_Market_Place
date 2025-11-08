@@ -820,6 +820,7 @@ export default function App() {
             onMessagesClick={() => setShowMessages(true)}
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
+            onHomeClick={handleBackToMarketplace}
             searchQuery={searchQuery}
             unreadMessages={unreadMessages}
           />
@@ -854,6 +855,7 @@ export default function App() {
             onMessagesClick={() => setShowMessages(true)}
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
+            onHomeClick={handleBackToMarketplace}
             searchQuery={searchQuery}
             unreadMessages={unreadMessages}
           />
@@ -914,6 +916,7 @@ export default function App() {
             onMessagesClick={() => setShowMessages(true)}
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
+            onHomeClick={handleBackToMarketplace}
             searchQuery={searchQuery}
             unreadMessages={unreadMessages}
           />
@@ -999,6 +1002,7 @@ export default function App() {
             onMessagesClick={() => setShowMessages(true)}
             onPostItemClick={handlePostItemClick}
             onSignOut={handleSignOut}
+            onHomeClick={handleBackToMarketplace}
             searchQuery={searchQuery}
             unreadMessages={unreadMessages}
           />
@@ -1038,6 +1042,7 @@ export default function App() {
           onPostItemClick={handlePostItemClick}
           onSignInClick={() => setAuthMode("signin")}
           onSignOut={handleSignOut}
+          onHomeClick={handleBackToMarketplace}
           searchQuery={searchQuery}
           unreadMessages={1}
         />

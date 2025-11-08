@@ -54,7 +54,7 @@ router.post('/', auth, async (req, res) => {
     await transaction.save();
     await transaction.populate('item');
     await transaction.populate('seller', 'name rating reviewCount');
-    await transaction.populate('buyer', 'name rating reviewCount');
+    await transaction.populate('buyer', 'name email rating reviewCount');
 
     res.status(201).json({ 
       message: 'Transaction created successfully',
@@ -90,7 +90,7 @@ router.put('/:id/complete', auth, async (req, res) => {
 
     await transaction.populate('item');
     await transaction.populate('seller', 'name rating reviewCount');
-    await transaction.populate('buyer', 'name rating reviewCount');
+    await transaction.populate('buyer', 'name email rating reviewCount');
 
     res.json({ 
       message: 'Transaction completed successfully',
@@ -118,8 +118,8 @@ router.get('/my-transactions', auth, async (req, res) => {
 
     const transactions = await Transaction.find(query)
       .populate('item')
-      .populate('seller', 'name rating reviewCount')
-      .populate('buyer', 'name rating reviewCount')
+      .populate('seller', 'name email rating reviewCount')
+      .populate('buyer', 'name email rating reviewCount')
       .sort({ createdAt: -1 });
 
     res.json({ transactions });
@@ -134,8 +134,8 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
       .populate('item')
-      .populate('seller', 'name rating reviewCount')
-      .populate('buyer', 'name rating reviewCount');
+      .populate('seller', 'name email rating reviewCount')
+      .populate('buyer', 'name email rating reviewCount');
 
     if (!transaction) {
       return res.status(404).json({ error: 'Transaction not found' });
@@ -188,8 +188,8 @@ router.get('/', async (req, res) => {
     const skip = (Math.max(Number(page), 1) - 1) * Number(limit);
     const transactions = await Transaction.find(query)
       .populate('item')
-      .populate('seller', 'name rating reviewCount')
-      .populate('buyer', 'name rating reviewCount')
+      .populate('seller', 'name email rating reviewCount')
+      .populate('buyer', 'name email rating reviewCount')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
@@ -222,7 +222,7 @@ router.put('/:id/cancel', auth, async (req, res) => {
 
     await transaction.populate('item');
     await transaction.populate('seller', 'name rating reviewCount');
-    await transaction.populate('buyer', 'name rating reviewCount');
+    await transaction.populate('buyer', 'name email rating reviewCount');
 
     res.json({ 
       message: 'Transaction cancelled successfully',

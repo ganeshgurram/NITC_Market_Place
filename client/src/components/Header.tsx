@@ -4,7 +4,6 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import React from "react";
-
 interface HeaderProps {
   currentUser?: {
     name: string;
@@ -20,6 +19,7 @@ interface HeaderProps {
   onPostItemClick: () => void;
   onSignInClick?: () => void;
   onSignOut?: () => void;
+  onHomeClick?: () => void;
   searchQuery: string;
   unreadMessages: number;
 }
@@ -32,6 +32,7 @@ export function Header({
   onPostItemClick,
   onSignInClick,
   onSignOut,
+  onHomeClick,
   searchQuery,
   unreadMessages 
 }: HeaderProps) {
@@ -41,10 +42,15 @@ export function Header({
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground">NM</span>
-            </div>
-            <h1>NITC Marketplace</h1>
+            <button 
+              onClick={onHomeClick}
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-primary-foreground">NM</span>
+              </div>
+              <h1 className="text-xl font-semibold">NITC Marketplace</h1>
+            </button>
           </div>
 
           {/* Search Bar */}
@@ -78,9 +84,7 @@ export function Header({
                   )}
                 </Button>
 
-                <Button variant="ghost" size="icon">
-                  <Bell className="w-5 h-5" />
-                </Button>
+                
               </>
             )}
 
