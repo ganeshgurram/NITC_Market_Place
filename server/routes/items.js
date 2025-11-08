@@ -11,6 +11,8 @@ router.get('/stats', async (req, res) => {
   try {
     // Count active listings
     const activeListings = await Item.countDocuments({ isAvailable: true });
+
+    const totalListings = await Item.countDocuments();
     
     // Count total users (excluding admins)
     const totalUsers = await User.countDocuments({ role: 'student' });
@@ -41,6 +43,7 @@ router.get('/stats', async (req, res) => {
     
     res.json({
       activeListings,
+      totalListings,
       totalUsers,
       totalTransactions,
       categoryCounts: categoryMap
