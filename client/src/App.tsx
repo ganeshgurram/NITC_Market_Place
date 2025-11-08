@@ -79,6 +79,11 @@ export default function App() {
 
   // Filter items based on search and filters
   const filteredItems = items.filter(item => {
+    // Filter out items with null sellers (deleted users)
+    if (!item.seller) {
+      return false;
+    }
+    
     const matchesSearch = searchQuery === "" ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());

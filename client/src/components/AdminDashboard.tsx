@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { adminAPI } from "../utils/api";
+import { adminAPI, usersAPI } from "../utils/api";
 
 interface AdminDashboardProps {
   currentUser: {
@@ -185,9 +185,38 @@ export function AdminDashboard({ currentUser, onSignOut }: AdminDashboardProps) 
         await fetchUsers();
         await fetchDashboardStats();
       } else if (action === 'delete') {
-        if (confirm('Are you sure you want to delete this user?')) {
+        if (confirm('Are you sure you want to delete this user? This will also delete all their listings and associated data.')) {
+          // First, get all items for this user
+          let userItems: Item[] = [];
+          try {
+            // Try to get user items via API
+            const itemsData = await usersAPI.getUserItems(userId);
+            userItems = itemsData.items || [];
+          } catch (err) {
+            // If API fails, filter from existing listings
+            // The seller field might be an object with _id or just an id string
+            userItems = allListings.filter(item => {
+              const sellerId = (item.seller as any)?._id || (item.seller as any)?.id || (typeof item.seller === 'string' ? item.seller : null);
+              return sellerId === userId;
+            });
+          }
+
+          // Delete all user's items first
+          if (userItems.length > 0) {
+            for (const item of userItems) {
+              try {
+                await adminAPI.deleteItem(item._id);
+              } catch (err: any) {
+                console.error(`Error deleting item ${item._id}:`, err);
+                // Continue deleting other items even if one fails
+              }
+            }
+          }
+
+          // Now delete the user
           await adminAPI.deleteUser(userId);
           await fetchUsers();
+          await fetchListings();
           await fetchDashboardStats();
         }
       }
